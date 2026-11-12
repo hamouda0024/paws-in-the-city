@@ -3,8 +3,10 @@
  * damage rules, records and the render pipeline.
  */
 import {
-  VIEW_W, VIEW_H, GROUND_Y, HAZARD, SAVE_KEY, SETTINGS_KEY, COLORS
+  VIEW_W, VIEW_H, GROUND_Y, HAZARD, SAVE_KEY, SETTINGS_KEY, COLORS,
+  APP_VERSION, UPDATE_MANIFEST_URL
 } from '../config.js';
+import { UpdateChecker } from '../core/updates.js';
 import { clamp, damp, lerp, randRange } from '../core/rng.js';
 import { fillRound, roundRect, text } from '../core/draw.js';
 import { World } from './world.js';
@@ -48,6 +50,10 @@ export class Game {
     this.carWarning = { dir: 0, life: 0 };
     this.showTouch = false;
     this.runSeed = 1000;
+    this.updates = new UpdateChecker({
+      currentVersion: APP_VERSION,
+      manifestUrl: UPDATE_MANIFEST_URL
+    });
 
     // Title diorama (separate world so the menu city never disturbs a run).
     this.titleWorld = new World(4242);
@@ -59,6 +65,20 @@ export class Game {
     this.titleCat.facing = -1;
 
     this.updateTouchMode();
+
+    // Never blocks startup, never throws: a failed check is a no-op.
+    setTimeout(() => { this.updates.check(); }, 1500);
+  }
+
+  /** Manual check from Settings. Returns the result and optionally toasts it. */
+  async checkForUpdates(notify = false) {
+    const res = await this.updates.check();
+    if (notify) {
+      if (res.available) this.screens.showToast(`Update ${res.latest} available — see the title screen`);
+      else if (res.error) this.screens.showToast('Could not check for updates (offline?)');
+      else this.screens.showToast('You are up to date');
+    }
+    return res;
   }
 
   // ----------------------------------------------------------- persistence --
@@ -557,10 +577,10 @@ export class Game {
   render() {
     const ctx = this.ctx;
     // The main loop owns the device transform and clears the letterbox bars.
-    if (this.state === 'title') return this.screens.drawTitle(ctx);
-    if (this.state === 'help') return this.screens.drawHelp(ctx);
-    if (this.state === 'settings') return this.screens.drawSettings(ctx);
-    if (this.state === 'about') return this.screens.drawAbout(ctx);
+    if (this.state === 'title') return this.screens.frame(ctx, (c) => this.screens.drawTitle(c));
+    if (this.state === 'help') return this.screens.frame(ctx, (c) => this.screens.drawHelp(c));
+    if (this.state === 'settings') return this.screens.frame(ctx, (c) => this.screens.drawSettings(c));
+    if (this.state === 'about') return this.screens.frame(ctx, (c) => this.screens.drawAbout(c));
 
     this.drawWorld(ctx);
 
@@ -568,8 +588,6 @@ export class Game {
       this.input.setButtons(this.showTouch ? this.hud.buttons(this) : []);
       this.hud.draw(ctx, this);
       this.drawCarWarning(ctx);
-    } else {
-      this.input.setButtons([]);
     }
 
     if (this.state === 'dying') {
@@ -581,8 +599,8 @@ export class Game {
       ctx.restore();
     }
 
-    if (this.state === 'paused') this.screens.drawPause(ctx);
-    if (this.state === 'dead') this.screens.drawGameOver(ctx);
+    if (this.state === 'paused') this.screens.frame(ctx, (c) => this.screens.drawPause(c));
+    if (this.state === 'dead') this.screens.frame(ctx, (c) => this.screens.drawGameOver(c));
   }
 
   drawWorld(ctx) {

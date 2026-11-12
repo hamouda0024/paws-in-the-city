@@ -2,7 +2,10 @@
  * Front-end screens drawn on the same canvas as the game: title, how-to-play,
  * settings, about, pause and game over. All menus work with touch and keyboard.
  */
-import { VIEW_W, VIEW_H, GROUND_Y, COLORS } from '../config.js';
+import {
+  VIEW_W, VIEW_H, GROUND_Y, COLORS,
+  APP_VERSION, COPYRIGHT, COPYRIGHT_AR, OWNER_NAME, OWNER_NAME_AR, GAME_TITLE
+} from '../config.js';
 import { clamp, mixHex, rgba } from '../core/rng.js';
 import { roundRect, fillRound, text, ellipse } from '../core/draw.js';
 import { formatTime } from './survival.js';
@@ -24,6 +27,22 @@ export class Screens {
     this.toast = '';
     this.toastLife = 0;
     this.exitNotice = 0;
+    this._buttons = [];
+  }
+
+  /**
+   * Draws a menu screen inside one input-button pass. Menu buttons are
+   * registered while drawing and consumed by the same frame's pointer state,
+   * so a tap lands immediately even on the first frame of a screen.
+   */
+  frame(ctx, drawFn) {
+    this._buttons = [];
+    drawFn(ctx);
+    this.game.input.setButtons(this._buttons);
+  }
+
+  addButton(id, x, y, w, h) {
+    this._buttons.push({ id, x, y, w, h });
   }
 
   enter(screen) {
@@ -63,7 +82,7 @@ export class Screens {
     const game = this.game;
     const input = game.input;
     const buttons = items.map((it, i) => ({ id: `menu-${i}`, x, y: y + i * (itemH + gap), w, h: itemH }));
-    input.setButtons(buttons);
+    for (const b of buttons) this.addButton(b.id, b.x, b.y, b.w, b.h);
 
     if (input.menuDown()) {
       this.selection = (this.selection + 1) % items.length;
@@ -242,10 +261,66 @@ export class Screens {
       else if (idx === 4) game.exitApp();
     }
 
-    text(ctx, 'Headphones recommended · Landscape', 68, VIEW_H - 34, {
+    this.drawUpdateBanner(ctx);
+
+    text(ctx, `v${APP_VERSION} · Headphones recommended · Landscape`, 68, VIEW_H - 48, {
       size: 10, weight: 600, color: 'rgba(160, 185, 215, 0.55)', letterSpacing: 1
     });
+    text(ctx, COPYRIGHT, 68, VIEW_H - 29, {
+      size: 10, weight: 600, color: 'rgba(255, 208, 168, 0.52)'
+    });
     this.drawToast(ctx);
+  }
+
+  /** Non-blocking "update available" card, with a direct download button. */
+  drawUpdateBanner(ctx) {
+    const game = this.game;
+    const updates = game.updates;
+    if (!updates || !updates.shouldNotify) return;
+
+    const x = 64;
+    const y = 344;
+    const w = 348;
+    const h = 96;
+
+    ctx.save();
+    fillRound(ctx, x, y, w, h, 14, 'rgba(28, 21, 12, 0.94)');
+    roundRect(ctx, x, y, w, h, 14);
+    ctx.strokeStyle = 'rgba(255, 190, 110, 0.7)';
+    ctx.lineWidth = 1.4;
+    ctx.stroke();
+
+    text(ctx, 'UPDATE AVAILABLE', x + 18, y + 25, {
+      size: 9.5, weight: 800, color: '#ffcf94', letterSpacing: 1.8
+    });
+    text(ctx, `Version ${updates.latest} is ready`, x + 18, y + 45, {
+      size: 12, weight: 700, color: '#fff3e4'
+    });
+
+    const btnY = y + h - 40;
+    const btnH = 28;
+    const pressed = (id) => game.input.buttonHeld.get(id);
+    this.addButton('update-download', x + 16, btnY, 138, btnH);
+    this.addButton('update-later', x + 166, btnY, 84, btnH);
+
+    fillRound(ctx, x + 16, btnY, 138, btnH, 8, pressed('update-download') ? '#ffd9a2' : '#ffb454');
+    text(ctx, 'Download update', x + 85, btnY + 19, {
+      size: 11, weight: 800, align: 'center', color: '#2a1a08'
+    });
+    fillRound(ctx, x + 166, btnY, 84, btnH, 8, 'rgba(46, 52, 68, 0.95)');
+    text(ctx, 'Later', x + 208, btnY + 19, {
+      size: 11, weight: 700, align: 'center', color: '#d3dced'
+    });
+
+    if (game.input.buttonPressed.has('update-download')) {
+      game.audio.playUi('confirm');
+      updates.openDownload();
+      updates.dismiss();
+    } else if (game.input.buttonPressed.has('update-later')) {
+      game.audio.playUi();
+      updates.dismiss();
+    }
+    ctx.restore();
   }
 
   drawHelp(ctx) {
@@ -316,22 +391,32 @@ export class Screens {
 
     const s = game.settings;
     const touchLabel = s.touch === 'auto' ? 'Auto' : s.touch === 'on' ? 'Always' : 'Off';
+    const updates = game.updates;
     const items = [
       { label: 'Sound', sub: 'Ambience, meows and traffic', value: s.sound ? 'ON' : 'OFF', valueOn: s.sound },
       { label: 'Haptics', sub: 'Vibrate on impacts', value: s.haptics ? 'ON' : 'OFF', valueOn: s.haptics },
       { label: 'Touch controls', sub: 'On-screen pads', value: touchLabel, valueOn: s.touch !== 'off' },
+      {
+        label: 'Check for updates',
+        sub: updates.status === 'checking' ? 'Checking…' : `Current version ${APP_VERSION}`,
+        value: updates.available ? 'UPDATE' : '',
+        valueOn: updates.available
+      },
       { label: 'Reset best record', sub: `${game.records.bestDay} days · ${game.records.bestFood} food`, value: '' },
       { label: 'Back', sub: '', value: '' }
     ];
-    const idx = this.menuBlock(ctx, items, { x: 262, y: 146, w: 436, itemH: 52, gap: 10 });
+    const idx = this.menuBlock(ctx, items, { x: 262, y: 142, w: 436, itemH: 46, gap: 8 });
     if (idx === 0) { game.toggleSound(); this.selection = 0; }
     else if (idx === 1) { game.toggleHaptics(); this.selection = 1; }
     else if (idx === 2) { game.cycleTouch(); this.selection = 2; }
     else if (idx === 3) {
+      game.checkForUpdates(true);
+      this.selection = 3;
+    } else if (idx === 4) {
       game.resetRecords();
       this.showToast('Best record cleared');
-      this.selection = 3;
-    } else if (idx === 4) game.back();
+      this.selection = 4;
+    } else if (idx === 5) game.back();
 
     this.drawToast(ctx);
   }
@@ -361,24 +446,53 @@ export class Screens {
       y += 20;
     }
 
-    y += 16;
+    // ---- ownership & copyright (owner of the game) ----
+    const mid = VIEW_W / 2;
+    ctx.strokeStyle = 'rgba(255, 190, 110, 0.24)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(198, 206);
+    ctx.lineTo(VIEW_W - 198, 206);
+    ctx.stroke();
+
+    text(ctx, 'OWNER & COPYRIGHT', mid, 224, {
+      size: 9, weight: 800, align: 'center', color: 'rgba(255, 190, 110, 0.78)', letterSpacing: 1.8
+    });
+    text(ctx, OWNER_NAME, mid, 246, {
+      size: 14, weight: 800, align: 'center', color: '#fff3e2'
+    });
+    text(ctx, OWNER_NAME_AR, mid, 264, {
+      size: 12.5, weight: 700, align: 'center', color: 'rgba(255, 216, 176, 0.9)'
+    });
+    text(ctx, COPYRIGHT, mid, 282, {
+      size: 10.5, weight: 600, align: 'center', color: 'rgba(226, 236, 250, 0.85)'
+    });
+    text(ctx, COPYRIGHT_AR, mid, 299, {
+      size: 9.5, weight: 500, align: 'center', color: 'rgba(190, 205, 225, 0.7)'
+    });
+
+    ctx.beginPath();
+    ctx.moveTo(198, 314);
+    ctx.lineTo(VIEW_W - 198, 314);
+    ctx.stroke();
+
     const facts = [
       ['Engine', 'Custom Canvas 2D engine (no game framework)'],
       ['Art', '100% procedural vector art — no image assets'],
-      ['Audio', 'Synthesized with WebAudio at runtime'],
-      ['Packaging', 'Capacitor 8 → Android APK']
+      ['Audio', 'Synthesized with WebAudio at runtime']
     ];
+    let fy = 332;
     for (const [k, v] of facts) {
-      text(ctx, k.toUpperCase(), 200, y, { size: 9, weight: 800, color: 'rgba(255, 190, 110, 0.65)', letterSpacing: 1.4 });
-      text(ctx, v, 300, y, { size: 11.5, weight: 500, color: 'rgba(205, 220, 240, 0.9)' });
-      y += 26;
+      text(ctx, k.toUpperCase(), 200, fy, { size: 9, weight: 800, color: 'rgba(255, 190, 110, 0.65)', letterSpacing: 1.4 });
+      text(ctx, v, 300, fy, { size: 11.5, weight: 500, color: 'rgba(205, 220, 240, 0.9)' });
+      fy += 22;
     }
 
-    text(ctx, 'Dedicated to every cat that ever owned a street.', VIEW_W / 2, y + 18, {
-      size: 11, weight: 600, align: 'center', color: 'rgba(170, 190, 215, 0.65)'
+    text(ctx, `Dedicated to every cat that ever owned a street. · ${GAME_TITLE} v${APP_VERSION}`, mid, 398, {
+      size: 10.5, weight: 600, align: 'center', color: 'rgba(170, 190, 215, 0.65)'
     });
 
-    const idx = this.menuBlock(ctx, [{ label: 'Back' }], { x: VIEW_W / 2 - 90, y: VIEW_H - 92, w: 180, itemH: 42 });
+    const idx = this.menuBlock(ctx, [{ label: 'Back' }], { x: VIEW_W / 2 - 90, y: 414, w: 180, itemH: 36 });
     if (idx === 0) game.back();
     this.drawToast(ctx);
   }

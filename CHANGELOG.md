@@ -3,6 +3,28 @@
 All notable changes to Urban Stray are documented here.
 This project follows [Semantic Versioning](https://semver.org/).
 
+## [1.1.0] — 2026-11-12
+
+### Added
+- **Ownership notice.** The title screen and the About screen now carry
+  “© 2026 Zerguine Ahmed Islam. All rights reserved.” alongside the Arabic notice
+  “حقوق الملكية محفوظة لـ زرقين أحمد إسلام”.
+- **Silent update check.** On boot the game fetches `www/version.json` from the
+  repository, compares it with the running build and — only when a newer version is
+  published — shows a non-blocking “Update available” card on the title screen with a
+  **Download update** button (opens the system browser on Android) and a **Later**
+  button. Offline, blocked, CORS and malformed-manifest cases are swallowed: the game
+  never stalls or crashes. Settings also gets a manual **Check for updates** row.
+
+### Fixed
+- **Menu buttons did not respond to touch.** Button presses were cleared at the end of
+  each update, before the menu screens (which are drawn later in the frame) read them,
+  so only the keyboard worked. Press/release state now survives the whole frame, and
+  taps are hit-tested at pointer-down so a quick touch can’t be missed. This fixes the
+  title menu, pause menu, settings and game-over buttons on touch devices.
+- Same-origin manifests no longer fail when the app is self-hosted (removed a
+  restrictive credentials mode from the update fetch).
+
 ## [1.0.0] — 2026-11-12
 
 First playable release, shipped as a signed Android APK.

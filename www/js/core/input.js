@@ -29,10 +29,13 @@ export class Input {
     this.pressed = { ...this.rawHeld };
     this.released = { ...this.rawHeld };
 
-    this.buttons = [];            // [{ id, x, y, w, h }] registered by the scene
-    this.buttonHeld = new Map();  // id -> bool
-    this.buttonPressed = new Set(); // ids pressed this frame
+    this.buttons = [];              // [{ id, x, y, w, h }] registered by the scene
+    this.buttonHeld = new Map();    // id -> bool
+    this.buttonPressed = new Set(); // ids activated since the last beginFrame
     this.buttonReleased = new Set();
+    // Taps are hit-tested at pointerdown time so a touch that lands and lifts
+    // between two frames still registers on the UI drawn in this frame.
+    this.pendingButtonPresses = new Set();
 
     this.pointers = new Map();
     this.taps = [];       // virtual-space taps this frame
@@ -75,6 +78,12 @@ export class Input {
       const p = this.toVirtual(e.clientX, e.clientY);
       this.pointers.set(e.pointerId, { x: p.x, y: p.y, startX: p.x, startY: p.y });
       this._rawTaps.push({ x: p.x, y: p.y });
+      for (const b of this.buttons) {
+        if (p.x >= b.x && p.x <= b.x + b.w && p.y >= b.y && p.y <= b.y + b.h) {
+          this.pendingButtonPresses.add(b.id);
+          break;
+        }
+      }
       this.lastPointer = { x: p.x, y: p.y, active: true };
       if (e.pointerType === 'touch') e.preventDefault();
     };
@@ -109,6 +118,12 @@ export class Input {
   }
 
   beginFrame() {
+    // Button state computed here stays readable for the whole frame, including
+    // render(), where menu screens consume it.
+    this.buttonPressed = new Set(this.pendingButtonPresses);
+    this.pendingButtonPresses.clear();
+    this.buttonReleased = new Set();
+
     const held = Object.fromEntries(ACTIONS.map((a) => [a, false]));
     for (const a of this.keyDown) held[a] = true;
 
@@ -145,11 +160,10 @@ export class Input {
   }
 
   endFrame() {
+    // Only the previous-frame snapshot is advanced here: pressed/released/taps
+    // must survive until the next beginFrame so render() can act on them.
     this.rawHeld = { ...this.held };
-    this.buttonPressed.clear();
-    this.buttonReleased.clear();
     this.dragDX = 0;
-    this.taps = this.taps.length ? [] : this.taps;
   }
 
   /** Any action that means "fire the primary control". */

@@ -111,3 +111,20 @@ export const COLORS = {
 
 export const SAVE_KEY = 'urban-stray-save-v1';
 export const SETTINGS_KEY = 'urban-stray-settings-v1';
+
+// ------------------------------------------------------- build & ownership --
+
+/** Running build version. Bump together with www/version.json and the Gradle versionName. */
+export const APP_VERSION = '1.1.0';
+
+/** Public manifest used by the silent update check (override with window.__urbanStrayUpdateUrl). */
+export const UPDATE_MANIFEST_URL =
+  'https://raw.githubusercontent.com/hamouda0024/paws-in-the-city/main/www/version.json';
+
+export const DOWNLOAD_PAGE_URL = 'https://github.com/hamouda0024/paws-in-the-city/releases';
+
+export const OWNER_NAME = 'Zerguine Ahmed Islam';
+export const OWNER_NAME_AR = 'زرقين أحمد إسلام';
+export const COPYRIGHT = '© 2026 Zerguine Ahmed Islam. All rights reserved.';
+export const COPYRIGHT_AR = 'حقوق الملكية محفوظة لـ زرقين أحمد إسلام (Zerguine Ahmed Islam)';
+export const GAME_TITLE = 'Urban Stray';

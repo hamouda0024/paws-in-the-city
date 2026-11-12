@@ -5,7 +5,7 @@ Scavenge food, dodge traffic, outsmart stray dogs and find somewhere warm to sle
 your three bars run out.
 
 [![Android](https://img.shields.io/badge/platform-Android%207.0%2B-3ddc84?logo=android&logoColor=white)](#-download)
-[![APK](https://img.shields.io/badge/APK-4.2%20MB-blue)](#-download)
+[![APK](https://img.shields.io/badge/APK-4.3%20MB-blue)](#-download)
 [![Engine](https://img.shields.io/badge/engine-Custom%20Canvas%202D-ffb454)](#tech-stack)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Build](https://github.com/hamouda0024/paws-in-the-city/actions/workflows/android.yml/badge.svg)](https://github.com/hamouda0024/paws-in-the-city/actions/workflows/android.yml)
@@ -16,13 +16,20 @@ your three bars run out.
 
 ## ⬇️ Download
 
-### [**Download Urban Stray v1.0.0 (APK, 4.2 MB)**](https://github.com/hamouda0024/paws-in-the-city/raw/main/releases/urban-stray-v1.0.0.apk)
+### [**Download Urban Stray v1.1.0 (APK, 4.3 MB)**](https://github.com/hamouda0024/paws-in-the-city/raw/main/releases/urban-stray-v1.1.0.apk)
 
 Signed release build · Android 7.0+ (API 24) · landscape · works offline, no ads, no accounts.
 
+**New in 1.1.0**
+
+- Touch menus work: the title, pause, settings and game-over buttons now respond to taps.
+- Built-in update check against [`www/version.json`](www/version.json) — an in-game banner
+  offers the new build, and the check fails silently when there is no connection.
+- Ownership notices on the title and About screens.
+
 **Install on your phone**
 
-1. Download `urban-stray-v1.0.0.apk` on the device (open this repo in the phone browser,
+1. Download `urban-stray-v1.1.0.apk` on the device (open this repo in the phone browser,
    or transfer the file over USB).
 2. Tap the file. Android will ask to allow installs from your browser/file manager —
    allow **"Install unknown apps"** for that app only.
@@ -31,7 +38,7 @@ Signed release build · Android 7.0+ (API 24) · landscape · works offline, no 
 **Install over USB instead**
 
 ```bash
-adb install -r releases/urban-stray-v1.0.0.apk
+adb install -r releases/urban-stray-v1.1.0.apk
 ```
 
 > Every tagged version (`v1.0.1`, `v1.1.0`, …) is built and attached automatically by
@@ -138,11 +145,13 @@ www/
   index.html            canvas shell, letterbox + rotate hint
   styles.css            full-bleed, gesture-proof page
   icon-512.png          generated app icon
+  version.json          release manifest read by the in-game update check
   js/
     main.js             boot, DPR/letterbox transform, frame loop, lifecycle
-    config.js           ALL tuning: physics, survival rates, hazards, palette
+    config.js           ALL tuning: physics, survival rates, hazards, palette, build version
     core/
       input.js          keyboard + touch actions, UI button hit-testing
+      updates.js        silent version check + "open download" helper
       audio.js          procedural WebAudio engine
       draw.js           canvas helpers (rounded rects, text, glows)
       rng.js            seeded RNG, math, colour utils
@@ -241,8 +250,24 @@ attached. Add `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_K
 debug-signed APK).
 
 ```bash
-git tag v1.0.1 && git push origin v1.0.1
+git tag v1.1.1 && git push origin v1.1.1
 ```
+
+### Publishing an update (in-app update check)
+
+The game reads [`www/version.json`](www/version.json) about 1.5 s after boot, compares it
+with `APP_VERSION` in `www/js/config.js` and, only if the manifest is newer, shows a
+non-blocking card on the title screen with a **Download update** button. Publish a release by:
+
+1. Bumping `APP_VERSION` (`www/js/config.js`), `version` (`package.json`),
+   `versionCode`/`versionName` (`android/app/build.gradle`) and `www/version.json` —
+   `version` plus the `downloadUrl` of the new APK.
+2. Building and committing the APK to `releases/`, then pushing to `main`.
+
+Offline, DNS, CORS, timeout and malformed-JSON failures are caught and the check simply
+stays quiet — it can never block or crash the game. Point it at another manifest for
+testing with `window.__urbanStrayUpdateUrl = '/version.json'`. On Android the download
+button opens the system browser through `@capacitor/browser`.
 
 ---
 
@@ -267,9 +292,13 @@ git tag v1.0.1 && git push origin v1.0.1
 See [CONTRIBUTING.md](CONTRIBUTING.md) and [CHANGELOG.md](CHANGELOG.md).
 Bug reports are welcome through the issue template.
 
-## License
+## Ownership & license
 
-[MIT](LICENSE) © Urban Stray contributors.
+Urban Stray © 2026 **Zerguine Ahmed Islam** — حقوق الملكية محفوظة لـ زرقين أحمد إسلام.
+The ownership notice is shown in-game on the title screen and the About screen.
+
+The source code is released under the [MIT license](LICENSE); the MIT terms cover the code,
+while the copyright notice above identifies the author and owner of the game.
 
 ## Credits
 
