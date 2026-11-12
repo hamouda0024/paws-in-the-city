@@ -2,7 +2,9 @@
  * In-game HUD: survival bars, clock/weather, interaction prompts, toasts,
  * and the on-screen touch pad.
  */
-import { VIEW_W, VIEW_H, COLORS, SURVIVAL } from '../config.js';
+import { VIEW_W, VIEW_H, COLORS, SURVIVAL, QUEST as QUEST_CFG } from '../config.js';
+
+const QUEST_ENOUGH = QUEST_CFG.goldFishToUnlock;
 import { clamp, lerp, rgba } from '../core/rng.js';
 import { roundRect, fillRound, text, ellipse } from '../core/draw.js';
 import { clockLabel, timePhaseLabel } from './survival.js';
@@ -54,6 +56,7 @@ export class HUD {
 
     this.drawBars(ctx, game);
     this.drawClock(ctx, game);
+    this.drawQuest(ctx, game);
     this.drawToasts(ctx);
     this.drawFloaters(ctx, game);
     this.drawPrompt(ctx, game);
@@ -342,15 +345,38 @@ export class HUD {
 
   // ---------------------------------------------------------- touch pad ----
 
+  /**
+   * Thumb-friendly layout, sized +35% over the first pass:
+   *   bottom-left  ◀ ▶ side by side (walking order, left on the left)
+   *   bottom-right big jump pad with sprint stacked directly above it
+   *   the paw (interact) pad only exists while something is in reach
+   */
   buttons(game) {
     if (!game.showTouch) return [];
-    return [
-      { id: 'left', x: 18, y: 448, w: 68, h: 68 },
-      { id: 'right', x: 94, y: 448, w: 68, h: 68 },
-      { id: 'sprint', x: 172, y: 462, w: 62, h: 54 },
-      { id: 'jump', x: 828, y: 424, w: 106, h: 106 },
-      { id: 'interact', x: 726, y: 456, w: 78, h: 78 }
+    const pad = 16;
+    const size = 92;
+    const gap = 12;
+    const bottom = VIEW_H - 14;
+    const moveY = bottom - size;
+    const jumpW = 132;
+    const jumpX = VIEW_W - pad - jumpW;
+    const jumpY = bottom - jumpW;
+    const sprintW = 96;
+    const sprintH = 74;
+
+    const list = [
+      { id: 'left', x: pad, y: moveY, w: size, h: size },
+      { id: 'right', x: pad + size + gap, y: moveY, w: size, h: size },
+      { id: 'sprint', x: VIEW_W - pad - sprintW, y: jumpY - sprintH - 14, w: sprintW, h: sprintH },
+      { id: 'jump', x: jumpX, y: jumpY, w: jumpW, h: jumpW }
     ];
+
+    const act = game.currentAction;
+    if (act && act.kind !== 'wake') {
+      const iw = 96;
+      list.push({ id: 'interact', x: jumpX - iw - 18, y: bottom - iw, w: iw, h: iw });
+    }
+    return list;
   }
 
   drawTouch(ctx, game) {
@@ -358,82 +384,160 @@ export class HUD {
     const btn = (id) => this.buttons(game).find((b) => b.id === id);
     const pressed = (id) => game.input.buttonHeld.get(id);
 
-    const pad = (b, glyph, accent = false, small = false) => {
+    const pad = (b, glyph, accent = false, highlight = 0) => {
       if (!b) return;
       const cx = b.x + b.w / 2;
       const cy = b.y + b.h / 2;
       const r = b.w / 2;
       const active = pressed(b.id);
       ctx.save();
-      ctx.globalAlpha = active ? 0.95 : 0.62;
+      if (highlight > 0) {
+        // Contextual glow: the paw lights up only when something is in reach.
+        const pulse = 0.55 + Math.sin(this.promptPulse * 6) * 0.25;
+        ctx.globalCompositeOperation = 'lighter';
+        const g = ctx.createRadialGradient(cx, cy, r * 0.6, cx, cy, r * 1.7);
+        g.addColorStop(0, `rgba(255, 196, 110, ${0.34 * pulse})`);
+        g.addColorStop(1, 'rgba(255, 196, 110, 0)');
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(cx, cy, r * 1.7, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalCompositeOperation = 'source-over';
+      }
+      ctx.globalAlpha = active ? 0.96 : highlight > 0 ? 0.88 : 0.62;
       ctx.beginPath();
       ctx.arc(cx, cy, r, 0, Math.PI * 2);
-      ctx.fillStyle = active ? 'rgba(46, 62, 92, 0.85)' : 'rgba(14, 22, 38, 0.6)';
+      ctx.fillStyle = active ? 'rgba(52, 70, 104, 0.9)' : highlight > 0 ? 'rgba(46, 34, 18, 0.82)' : 'rgba(14, 22, 38, 0.6)';
       ctx.fill();
-      ctx.strokeStyle = accent ? 'rgba(255, 190, 110, 0.6)' : 'rgba(160, 200, 245, 0.35)';
-      ctx.lineWidth = active ? 2.4 : 1.4;
+      ctx.strokeStyle = highlight > 0
+        ? `rgba(255, 200, 120, ${0.7 + Math.sin(this.promptPulse * 6) * 0.25})`
+        : accent ? 'rgba(255, 190, 110, 0.6)' : 'rgba(160, 200, 245, 0.35)';
+      ctx.lineWidth = active ? 3 : highlight > 0 ? 2.6 : 1.6;
       ctx.stroke();
 
       ctx.translate(cx, cy);
       if (active) ctx.scale(0.94, 0.94);
-      ctx.fillStyle = accent ? 'rgba(255, 214, 160, 0.95)' : 'rgba(226, 240, 255, 0.9)';
+      ctx.fillStyle = accent || highlight > 0 ? 'rgba(255, 218, 168, 0.96)' : 'rgba(226, 240, 255, 0.9)';
       ctx.strokeStyle = ctx.fillStyle;
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
-      glyph(ctx, r, small);
+      glyph(ctx, r);
       ctx.restore();
     };
 
     pad(btn('left'), (c) => {
       c.beginPath();
-      c.moveTo(6, 0);
-      c.lineTo(-6, -9);
-      c.lineTo(-6, 9);
+      c.moveTo(9, 0);
+      c.lineTo(-9, -14);
+      c.lineTo(-9, 14);
       c.closePath();
       c.fill();
     });
     pad(btn('right'), (c) => {
       c.beginPath();
-      c.moveTo(-6, 0);
-      c.lineTo(6, -9);
-      c.lineTo(6, 9);
+      c.moveTo(-9, 0);
+      c.lineTo(9, -14);
+      c.lineTo(9, 14);
       c.closePath();
       c.fill();
     });
     pad(btn('sprint'), (c) => {
-      c.lineWidth = 3.4;
+      c.lineWidth = 4.2;
       c.beginPath();
-      c.moveTo(-7, -7);
+      c.moveTo(-10, -9);
       c.lineTo(1, 0);
-      c.lineTo(-7, 7);
-      c.moveTo(2, -7);
-      c.lineTo(10, 0);
-      c.lineTo(2, 7);
+      c.lineTo(-10, 9);
+      c.moveTo(3, -9);
+      c.lineTo(14, 0);
+      c.lineTo(3, 9);
       c.stroke();
     });
     pad(btn('interact'), (c) => {
       // Paw print.
       c.beginPath();
-      c.ellipse(0, 4, 7, 5.6, 0, 0, Math.PI * 2);
+      c.ellipse(0, 5, 9, 7.2, 0, 0, Math.PI * 2);
       c.fill();
       for (let i = 0; i < 4; i++) {
         const a = Math.PI + (i + 1) * (Math.PI / 5);
         c.beginPath();
-        c.ellipse(Math.cos(a) * 10, Math.sin(a) * 9 + 2, 2.6, 3.2, a + Math.PI / 2, 0, Math.PI * 2);
+        c.ellipse(Math.cos(a) * 13, Math.sin(a) * 11 + 3, 3.4, 4, a + Math.PI / 2, 0, Math.PI * 2);
         c.fill();
       }
-    }, true);
+    }, true, 1);
     pad(btn('jump'), (c) => {
       c.beginPath();
-      c.moveTo(0, -16);
-      c.lineTo(13, -1);
-      c.lineTo(5, -1);
-      c.lineTo(5, 14);
-      c.lineTo(-5, 14);
-      c.lineTo(-5, -1);
-      c.lineTo(-13, -1);
+      c.moveTo(0, -20);
+      c.lineTo(16, -3);
+      c.lineTo(6, -3);
+      c.lineTo(6, 17);
+      c.lineTo(-6, 17);
+      c.lineTo(-6, -3);
+      c.lineTo(-16, -3);
       c.closePath();
       c.fill();
     }, true);
+
+    // Context label under the paw so the action is never ambiguous.
+    const act = game.currentAction;
+    const paw = btn('interact');
+    if (act && paw && act.kind !== 'wake') {
+      const label = act.kind === 'dumpster' ? 'RUMMAGE' : act.kind === 'sleep' ? 'SLEEP' : 'USE';
+      text(ctx, label, paw.x + paw.w / 2, paw.y + paw.h - 8, {
+        size: 8, weight: 800, align: 'center', color: 'rgba(255, 226, 180, 0.95)', letterSpacing: 1
+      });
+    }
+  }
+
+  /** Active quest chip: objective, timer and progress. */
+  drawQuest(ctx, game) {
+    const quests = game.quests;
+    if (!quests) return;
+    const q = quests.active;
+    const showBanner = quests.bannerLife > 0;
+    if (!q && !showBanner) return;
+
+    const w = 268;
+    const x = VIEW_W / 2 - w / 2;
+    const y = 64;
+    ctx.save();
+    fillRound(ctx, x, y, w, 40, 12, 'rgba(10, 16, 28, 0.72)');
+    roundRect(ctx, x, y, w, 40, 12);
+    ctx.strokeStyle = 'rgba(255, 200, 130, 0.32)';
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+
+    text(ctx, 'QUEST', x + 12, y + 15, { size: 8, weight: 800, color: 'rgba(255, 200, 140, 0.85)', letterSpacing: 1.6 });
+    const label = q ? q.label : quests.banner;
+    text(ctx, label, x + 12, y + 30, { size: 11.5, weight: 700, color: '#fff2df' });
+
+    if (q) {
+      const pct = clamp(q.progress / Math.max(0.001, q.target), 0, 1);
+      const bx = x + w - 96;
+      fillRound(ctx, bx, y + 14, 84, 6, 3, 'rgba(255, 255, 255, 0.14)');
+      if (pct > 0.01) fillRound(ctx, bx, y + 14, Math.max(3, 84 * pct), 6, 3, '#ffb454');
+      const time = Math.ceil(quests.timeLeft);
+      text(ctx, q.id === 'goldfish' ? `${q.progress}/${q.target}` : `${time}s`, x + w - 12, y + 33, {
+        size: 11, weight: 800, align: 'right', color: pct > 0.6 ? '#8dffc2' : 'rgba(226, 238, 252, 0.85)'
+      });
+    }
+    ctx.restore();
+
+    // Golden fish counter (permanent unlock progress), beside the quest chip.
+    const gf = quests.goldFish;
+    const gx = x + w + 10;
+    ctx.save();
+    fillRound(ctx, gx, y + 6, 62, 28, 10, 'rgba(10, 16, 28, 0.72)');
+    ctx.fillStyle = '#ffcf5c';
+    ctx.beginPath();
+    ctx.ellipse(gx + 16, y + 20, 7, 4.6, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(gx + 9, y + 20);
+    ctx.lineTo(gx + 3, y + 15);
+    ctx.lineTo(gx + 3, y + 25);
+    ctx.closePath();
+    ctx.fill();
+    text(ctx, `${gf}/${QUEST_ENOUGH}`, gx + 30, y + 24, { size: 12, weight: 800, color: quests.doubleJump ? '#8dffc2' : '#ffe6b0' });
+    ctx.restore();
   }
 }

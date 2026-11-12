@@ -4,8 +4,19 @@
  * World coordinates are in a fixed 960x540 "virtual view" (CSS pixels are scaled to fit).
  */
 
-export const VIEW_W = 960;
+/**
+ * Virtual view. The height is a fixed design budget; the width follows the real
+ * screen aspect so the game always fills the device edge to edge (no letterbox).
+ * ES module live bindings mean every importer sees the updated width.
+ */
+export let VIEW_W = 960;
 export const VIEW_H = 540;
+
+/** Called once at boot and on every resize/orientation change. */
+export function setViewport(width, height = VIEW_H) {
+  VIEW_W = Math.round(Math.max(760, Math.min(1800, width)));
+  return VIEW_W;
+}
 
 /** Street surface the cat walks on. */
 export const GROUND_Y = 470;
@@ -27,6 +38,8 @@ export const PHYS = {
   pounceBoost: 1.1,
   coyoteTime: 0.1,
   jumpBuffer: 0.13,
+  /** Second, weaker jump once the golden fish unlock is earned. */
+  doubleJumpVelocity: 430,
   /** Clawing a wall slows the fall instead of stopping it. */
   clawFallSpeed: 110,
   clawStaminaDrain: 8,
@@ -68,6 +81,28 @@ export const HAZARD = {
   toxicDps: 11,
   iframeTime: 0.85,
   shooDamage: 5
+};
+
+/** Camera / feedback tuning ("game juice"). */
+export const FEEL = {
+  carShakeSpeed: 250,
+  carShakeRadius: 210,
+  carShakeMag: 7,
+  landShakeSpeed: 620,
+  landShakeMag: 6,
+  jumpDust: 6,
+  rainSplashRate: 26
+};
+
+/** Dynamic quests + collectibles. */
+export const QUEST = {
+  duration: 62,
+  shelterWindow: 26,
+  stealthRadius: 210,
+  stealthHold: 2.6,
+  goldFishToUnlock: 3,
+  rewardHunger: 18,
+  rewardHeal: 10
 };
 
 export const FOOD_VALUE = {
@@ -115,7 +150,7 @@ export const SETTINGS_KEY = 'urban-stray-settings-v1';
 // ------------------------------------------------------- build & ownership --
 
 /** Running build version. Bump together with www/version.json and the Gradle versionName. */
-export const APP_VERSION = '1.1.0';
+export const APP_VERSION = '1.2.0';
 
 /** Public manifest used by the silent update check (override with window.__urbanStrayUpdateUrl). */
 export const UPDATE_MANIFEST_URL =

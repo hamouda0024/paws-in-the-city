@@ -9,7 +9,7 @@
  *  - a spring-driven tail chain, ears that flick, slow blinks, idle grooming
  *  - paw-step dust and timed footsteps, purring when it rests contentedly
  */
-import { PHYS, SURVIVAL, GROUND_Y, COLORS } from '../config.js';
+import { PHYS, SURVIVAL, GROUND_Y, COLORS, FEEL } from '../config.js';
 import { clamp, lerp, approach } from '../core/rng.js';
 
 export class Cat {
@@ -52,6 +52,7 @@ export class Cat {
     this.hurtFlash = 0;
     this.stepTimer = 0;
     this.pounceTimer = 0;
+    this.airJumps = 0;
     this.purrTimer = 10 + Math.random() * 20;
     this.wet = 0;
     this.landImpact = 0;
@@ -138,8 +139,20 @@ export class Cat {
       this.squash = 0.0;
       survival.energy = Math.max(0, survival.energy - SURVIVAL.energyDrainJump);
       audio.playJump();
-      game.particles.dust(this.centerX, this.feetY, 5, -this.facing, 0.7);
+      game.particles.dust(this.centerX, this.feetY, FEEL.jumpDust, -this.facing, 0.7);
       game.onCatJump?.();
+    } else if (this.jumpBuffer > 0 && !this.grounded && this.airJumps > 0) {
+      // Double jump (unlocked with golden fish): a mid-air scramble.
+      this.airJumps--;
+      this.vy = -PHYS.doubleJumpVelocity;
+      this.jumpBuffer = 0;
+      this.stretch = 1;
+      this.squash = 0;
+      survival.energy = Math.max(0, survival.energy - SURVIVAL.energyDrainJump * 0.6);
+      audio.playJump();
+      game.particles.dust(this.centerX, this.feetY - 2, 9, 0, 0.85);
+      game.particles.sparkle(this.centerX, this.feetY - 6, 8, '#ffe9b0');
+      game.addShake?.(2.6, 0.16);
     }
 
     // Variable jump: releasing early cuts the rise.
@@ -168,9 +181,11 @@ export class Cat {
     if (this.grounded && !this.wasGrounded) {
       const impact = this.landImpact || 0;
       this.squash = clamp(impact / 760, 0.12, 1);
+      this.airJumps = game.quests?.doubleJump ? 1 : 0;
       if (impact > 120) {
-        game.particles.dust(this.centerX, this.feetY, Math.min(10, 3 + impact / 120), 0, 0.8 + impact / 900);
+        game.particles.dust(this.centerX, this.feetY, Math.min(14, 4 + impact / 110), 0, 0.85 + impact / 900);
         audio.playLand(clamp(impact / 700, 0.35, 1));
+        if (impact > FEEL.landShakeSpeed) game.addShake?.(FEEL.landShakeMag, 0.22);
       }
       if (impact > PHYS.fallDamageThreshold) {
         const dmg = Math.min(24, (impact - PHYS.fallDamageThreshold) / 42);
@@ -363,19 +378,27 @@ export class Cat {
     this.drawHead(ctx, fur, cream, darkness);
     ctx.restore();
 
-    // Eyes catching the light at night.
-    if (darkness > 0.35) {
+    // Eyes catching the light: a strong cat-eyeshine once the street goes dark.
+    if (darkness > 0.2) {
       const ex = this.x + this.w / 2 + this.facing * 14;
       const ey = this.y + 2;
       ctx.save();
       ctx.globalCompositeOperation = 'lighter';
-      ctx.globalAlpha = 0.5 * darkness;
-      const g = ctx.createRadialGradient(ex, ey, 0, ex, ey, 26);
-      g.addColorStop(0, 'rgba(168, 224, 90, 0.55)');
+      ctx.globalAlpha = 0.75 * darkness;
+      const g = ctx.createRadialGradient(ex, ey, 0, ex, ey, 34);
+      g.addColorStop(0, 'rgba(186, 240, 110, 0.7)');
+      g.addColorStop(0.4, 'rgba(168, 224, 90, 0.32)');
       g.addColorStop(1, 'rgba(168, 224, 90, 0)');
       ctx.fillStyle = g;
       ctx.beginPath();
-      ctx.arc(ex, ey, 26, 0, Math.PI * 2);
+      ctx.arc(ex, ey, 34, 0, Math.PI * 2);
+      ctx.fill();
+      // Two hard pinpoints so the shine reads as eyes, not a lamp.
+      ctx.globalAlpha = 0.9 * darkness;
+      ctx.fillStyle = 'rgba(214, 255, 150, 0.95)';
+      ctx.beginPath();
+      ctx.arc(ex + 1.5, ey + 2.5, 1.7, 0, Math.PI * 2);
+      ctx.arc(ex - 5.5, ey + 2.5, 1.5, 0, Math.PI * 2);
       ctx.fill();
       ctx.restore();
     }

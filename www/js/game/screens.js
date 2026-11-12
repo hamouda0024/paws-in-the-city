@@ -4,7 +4,7 @@
  */
 import {
   VIEW_W, VIEW_H, GROUND_Y, COLORS,
-  APP_VERSION, COPYRIGHT, COPYRIGHT_AR, OWNER_NAME, OWNER_NAME_AR, GAME_TITLE
+  APP_VERSION, COPYRIGHT, COPYRIGHT_AR, OWNER_NAME, OWNER_NAME_AR, GAME_TITLE, QUEST
 } from '../config.js';
 import { clamp, mixHex, rgba } from '../core/rng.js';
 import { roundRect, fillRound, text, ellipse } from '../core/draw.js';
@@ -252,7 +252,7 @@ export class Screens {
       { label: 'About', sub: 'Credits & the story' },
       { label: 'Exit', sub: 'Leave the city' }
     ];
-    const idx = this.menuBlock(ctx, items, { x: 596, y: 148, w: 302, itemH: 50, gap: 9 });
+    const idx = this.menuBlock(ctx, items, { x: VIEW_W - 366, y: 148, w: 302, itemH: 50, gap: 9 });
     if (idx >= 0) {
       if (idx === 0) game.startRun();
       else if (idx === 1) game.go('help');
@@ -338,37 +338,37 @@ export class Screens {
     text(ctx, 'Everything you need to survive one more night.', 82, 98, { size: 11, weight: 500, color: 'rgba(175, 195, 220, 0.7)' });
 
     const rows = [
-      ['← →  /  A D', 'Move. Hold SHIFT to sprint (burns energy).'],
-      ['SPACE  /  ↑', 'Jump. Hold longer to jump higher.'],
-      ['E  /  PAW', 'Hold to rummage dumpsters or sleep in boxes.'],
+      ['◀ ▶  /  A D', 'Move. Hold SHIFT or the >>> pad to sprint (burns energy).'],
+      ['SPACE  /  ↑', 'Jump. Hold longer to jump higher. Second tap = double jump.'],
+      ['E  /  PAW', 'Hold to rummage dumpsters or sleep in boxes. Appears in reach.'],
       ['ESC  /  ❚❚', 'Pause the run.']
     ];
-    let y = 130;
+    let y = 126;
     for (const [key, desc] of rows) {
-      fillRound(ctx, 82, y - 16, 148, 26, 7, 'rgba(26, 36, 54, 0.95)');
-      text(ctx, key, 156, y + 1, { size: 11, weight: 800, align: 'center', color: '#ffd9a5', letterSpacing: 1 });
-      text(ctx, desc, 248, y + 1, { size: 12, weight: 500, color: 'rgba(220, 232, 248, 0.9)' });
-      y += 38;
+      fillRound(ctx, 82, y - 15, 156, 24, 7, 'rgba(26, 36, 54, 0.95)');
+      text(ctx, key, 160, y + 1, { size: 10.5, weight: 800, align: 'center', color: '#ffd9a5', letterSpacing: 1 });
+      text(ctx, desc, 252, y + 1, { size: 11.5, weight: 500, color: 'rgba(220, 232, 248, 0.9)' });
+      y += 36;
     }
 
     // Survival tips.
-    text(ctx, 'SURVIVING THE CITY', 82, y + 14, { size: 12, weight: 800, color: '#ffcf94', letterSpacing: 2 });
+    text(ctx, 'SURVIVING THE CITY', 82, y + 12, { size: 12, weight: 800, color: '#ffcf94', letterSpacing: 2 });
     const tips = [
       ['Rooftops are safe', 'Dogs and cars stay on the street. Climb high to rest.'],
-      ['Three bars, one life', 'Hunger falls fastest. Eating also heals you a little.'],
+      ['Quests pay in food', 'Shelter from storms, sneak past dogs, climb for golden fish.'],
+      ['Golden fish = power', `Collect ${QUEST.goldFishToUnlock} on high perches to learn the double jump.`],
       ['Read the warnings', 'A horn means a car is coming — get off the asphalt.'],
-      ['Steal a dog\'s dinner', 'Drop food near a dog to distract it.'],
       ['Rain and night', 'Traffic speeds up and dogs get bolder after dark.']
     ];
-    let ty = y + 40;
+    let ty = y + 32;
     for (const [title, desc] of tips) {
       ctx.fillStyle = 'rgba(255, 190, 110, 0.85)';
       ctx.beginPath();
       ctx.arc(88, ty - 4, 2.6, 0, Math.PI * 2);
       ctx.fill();
-      text(ctx, title, 100, ty, { size: 12, weight: 700, color: '#eaf2ff' });
-      text(ctx, desc, 100, ty + 14, { size: 10.5, weight: 500, color: 'rgba(170, 190, 215, 0.75)' });
-      ty += 34;
+      text(ctx, title, 100, ty, { size: 11.5, weight: 700, color: '#eaf2ff' });
+      text(ctx, desc, 100, ty + 13, { size: 10, weight: 500, color: 'rgba(170, 190, 215, 0.75)' });
+      ty += 30;
     }
 
     const idx = this.menuBlock(ctx, [{ label: 'Back' }], { x: VIEW_W / 2 - 90, y: VIEW_H - 78, w: 180, itemH: 42 });
@@ -405,7 +405,7 @@ export class Screens {
       { label: 'Reset best record', sub: `${game.records.bestDay} days · ${game.records.bestFood} food`, value: '' },
       { label: 'Back', sub: '', value: '' }
     ];
-    const idx = this.menuBlock(ctx, items, { x: 262, y: 142, w: 436, itemH: 46, gap: 8 });
+    const idx = this.menuBlock(ctx, items, { x: VIEW_W / 2 - 218, y: 142, w: 436, itemH: 46, gap: 8 });
     if (idx === 0) { game.toggleSound(); this.selection = 0; }
     else if (idx === 1) { game.toggleHaptics(); this.selection = 1; }
     else if (idx === 2) { game.cycleTouch(); this.selection = 2; }
@@ -522,7 +522,7 @@ export class Screens {
       { label: 'Restart Run', sub: 'Start a fresh night' },
       { label: 'Main Menu', sub: '' }
     ];
-    const idx = this.menuBlock(ctx, items, { x: 350, y: 168, w: 260, itemH: 52, gap: 12 });
+    const idx = this.menuBlock(ctx, items, { x: VIEW_W / 2 - 130, y: 168, w: 260, itemH: 52, gap: 12 });
     if (idx === 0) game.resume();
     else if (idx === 1) game.startRun();
     else if (idx === 2) game.toMenu();
@@ -585,7 +585,7 @@ export class Screens {
       { label: 'Try Again', sub: '' },
       { label: 'Main Menu', sub: '' }
     ];
-    const idx = this.menuBlock(ctx, items, { x: 330, y: y + 6, w: 300, itemH: 48, gap: 9 });
+    const idx = this.menuBlock(ctx, items, { x: VIEW_W / 2 - 150, y: y + 6, w: 300, itemH: 48, gap: 9 });
     if (idx === 0) game.startRun();
     else if (idx === 1) game.toMenu();
     this.drawToast(ctx);

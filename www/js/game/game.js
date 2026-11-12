@@ -4,7 +4,7 @@
  */
 import {
   VIEW_W, VIEW_H, GROUND_Y, HAZARD, SAVE_KEY, SETTINGS_KEY, COLORS,
-  APP_VERSION, UPDATE_MANIFEST_URL
+  APP_VERSION, UPDATE_MANIFEST_URL, FEEL, QUEST
 } from '../config.js';
 import { UpdateChecker } from '../core/updates.js';
 import { clamp, damp, lerp, randRange } from '../core/rng.js';
@@ -17,6 +17,7 @@ import { Background } from './background.js';
 import { HUD } from './hud.js';
 import { Screens } from './screens.js';
 import { Food } from './entities.js';
+import { Quests } from './quests.js';
 
 export class Game {
   constructor({ canvas, ctx, input, audio, settings }) {
@@ -50,6 +51,7 @@ export class Game {
     this.carWarning = { dir: 0, life: 0 };
     this.showTouch = false;
     this.runSeed = 1000;
+    this.quests = new Quests(this);
     this.updates = new UpdateChecker({
       currentVersion: APP_VERSION,
       manifestUrl: UPDATE_MANIFEST_URL
@@ -84,7 +86,7 @@ export class Game {
   // ----------------------------------------------------------- persistence --
 
   loadRecords() {
-    const fallback = { bestDay: 0, bestFood: 0, bestDistance: 0, runs: 0 };
+    const fallback = { bestDay: 0, bestFood: 0, bestDistance: 0, runs: 0, goldFish: 0, doubleJump: false };
     try {
       const raw = localStorage.getItem(SAVE_KEY);
       if (!raw) return fallback;
@@ -97,7 +99,7 @@ export class Game {
   }
 
   resetRecords() {
-    this.records = { bestDay: 0, bestFood: 0, bestDistance: 0, runs: 0 };
+    this.records = { bestDay: 0, bestFood: 0, bestDistance: 0, runs: 0, goldFish: 0, doubleJump: false };
     this.saveRecords();
   }
 
@@ -165,6 +167,9 @@ export class Game {
     this.runSeed = Math.floor(Math.random() * 100000);
     this.world.reset(this.runSeed);
     this.survival.reset();
+    this.quests.reset();
+    this.quests.restore(this.records);
+    this.cat.airJumps = this.quests.doubleJump ? 1 : 0;
     this.particles.clear();
     this.hud.reset();
     this.cat.reset(this.world.spawnX, GROUND_Y - 24);
@@ -273,6 +278,8 @@ export class Game {
     this.updatePickups(dt);
     this.updateToxins(dt);
     this.updateCamera(dt);
+    this.updateTrafficFeel(dt);
+    this.quests.update(dt, this);
 
     this.particles.update(dt);
     this.hud.update(dt, this);
@@ -305,6 +312,25 @@ export class Game {
     if (this.deathTimer <= 0) {
       this.state = 'dead';
       this.screens.enter('dead');
+    }
+  }
+
+  /** Passing traffic shakes the camera so speed is felt, not just seen. */
+  updateTrafficFeel(dt) {
+    const cat = this.cat;
+    for (const e of this.world.entities) {
+      if (e.kind !== 'car' || e.dead || e.shook) continue;
+      const d = Math.abs(e.cx - cat.centerX);
+      const speed = Math.abs(e.speed || 0);
+      if (d < FEEL.carShakeRadius && speed > FEEL.carShakeSpeed) {
+        e.shook = true;
+        const close = 1 - d / FEEL.carShakeRadius;
+        this.addShake(FEEL.carShakeMag * (0.5 + close), 0.26);
+        this.audio.playCarPass?.(e.dir * 0.6);
+        if (this.world.rainAmount > 0.2) {
+          this.particles.splash(e.cx, this.world.ground.y, 5, 'rgba(180, 215, 245, 0.5)');
+        }
+      }
     }
   }
 
@@ -457,6 +483,18 @@ export class Game {
     const cat = this.cat;
     if (cat.sleeping) return;
     for (const e of this.world.entities) {
+      if (e.kind === 'goldfish' && !e.dead) {
+        if (Math.abs(e.cx - cat.centerX) < 34 && Math.abs(e.cy - cat.centerY) < 42) {
+          e.dead = true;
+          this.quests.onGoldFish();
+          this.audio.playPickup();
+          this.particles.sparkle(e.cx, e.cy, 16, '#ffe08a');
+          this.hud.floater('GOLDEN FISH', e.cx, e.cy - 16, 'good');
+          this.hud.toast(`Golden fish ${this.quests.goldFish}/${QUEST.goldFishToUnlock}`, 'good');
+          this.addShake(3, 0.18);
+        }
+        continue;
+      }
       if (e.kind !== 'food' || e.dead) continue;
       if (Math.abs(e.cx - cat.centerX) < 30 && Math.abs(e.cy - cat.centerY) < 34) {
         e.dead = true;

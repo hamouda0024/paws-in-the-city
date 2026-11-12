@@ -5,7 +5,7 @@ Scavenge food, dodge traffic, outsmart stray dogs and find somewhere warm to sle
 your three bars run out.
 
 [![Android](https://img.shields.io/badge/platform-Android%207.0%2B-3ddc84?logo=android&logoColor=white)](#-download)
-[![APK](https://img.shields.io/badge/APK-4.3%20MB-blue)](#-download)
+[![APK](https://img.shields.io/badge/APK-4.2%20MB-blue)](#-download)
 [![Engine](https://img.shields.io/badge/engine-Custom%20Canvas%202D-ffb454)](#tech-stack)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Build](https://github.com/hamouda0024/paws-in-the-city/actions/workflows/android.yml/badge.svg)](https://github.com/hamouda0024/paws-in-the-city/actions/workflows/android.yml)
@@ -16,20 +16,24 @@ your three bars run out.
 
 ## ⬇️ Download
 
-### [**Download Urban Stray v1.1.0 (APK, 4.3 MB)**](https://github.com/hamouda0024/paws-in-the-city/raw/main/releases/urban-stray-v1.1.0.apk)
+### [**Download Urban Stray v1.2.0 (APK, 4.3 MB)**](https://github.com/hamouda0024/paws-in-the-city/raw/main/releases/urban-stray-v1.2.0.apk)
 
 Signed release build · Android 7.0+ (API 24) · landscape · works offline, no ads, no accounts.
 
-**New in 1.1.0**
+**New in 1.2.0**
 
-- Touch menus work: the title, pause, settings and game-over buttons now respond to taps.
-- Built-in update check against [`www/version.json`](www/version.json) — an in-game banner
-  offers the new build, and the check fails silently when there is no connection.
-- Ownership notices on the title and About screens.
+- Full-screen play — the city fills the whole display, no letterbox bars or blurred gutters.
+- Fixed the world/target mismatch: buildings, awnings and dumpsters are always visible and
+  always line up with their colliders (no more standing on air or invisible walls).
+- Rebuilt touch controls: ◀ ▶ side by side, bigger pads, sprint above jump, and a paw
+  button that appears only when something is in reach.
+- Neon shops, stepped lofts, glowing signs and rain-slick streets across varied districts.
+- Dynamic quests (shelter, stealth, golden fish) and a golden-fish double jump unlock.
+- Camera shake from fast traffic, landing dust and stronger night eyeshine.
 
 **Install on your phone**
 
-1. Download `urban-stray-v1.1.0.apk` on the device (open this repo in the phone browser,
+1. Download `urban-stray-v1.2.0.apk` on the device (open this repo in the phone browser,
    or transfer the file over USB).
 2. Tap the file. Android will ask to allow installs from your browser/file manager —
    allow **"Install unknown apps"** for that app only.
@@ -38,7 +42,7 @@ Signed release build · Android 7.0+ (API 24) · landscape · works offline, no 
 **Install over USB instead**
 
 ```bash
-adb install -r releases/urban-stray-v1.1.0.apk
+adb install -r releases/urban-stray-v1.2.0.apk
 ```
 
 > Every tagged version (`v1.0.1`, `v1.1.0`, …) is built and attached automatically by
@@ -157,6 +161,8 @@ www/
       rng.js            seeded RNG, math, colour utils
     game/
       game.js           state machine, camera, damage rules, records, render pipeline
+      props.js          climbable props: one object holds box + artwork
+      quests.js         rotating objectives, golden fish, double-jump unlock
       world.js          chunk streaming, terrain/rooftops, weather, traffic
       cat.js            player physics, procedural animation, vector drawing
       entities.js       cars, dogs, humans, mice, food, sleep spots

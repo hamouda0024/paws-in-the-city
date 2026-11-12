@@ -7,7 +7,7 @@
  */
 import { VIEW_W, VIEW_H, GROUND_Y, COLORS } from '../config.js';
 import { clamp, lerp, mixHex, rgba } from '../core/rng.js';
-import { roundRect, ellipse } from '../core/draw.js';
+import { roundRect, ellipse, fillRound } from '../core/draw.js';
 
 const SKY_KEYS = [
   { t: 0.00, top: '#05070f', mid: '#0a1222', low: '#121c30', haze: '#16213a' },
@@ -238,13 +238,19 @@ export class Background {
     const pal = skyPalette(survival.timeOfDay);
     const dark = survival.darkness;
 
+    // Street lives in screen space (it scrolls with painted texture, not geometry).
+    this.drawStreet(ctx, world, camera, pal, dark, survival);
+
+    // Everything structural is drawn in WORLD space — the camera offset is what
+    // used to be missing, which left invisible buildings behind the play area.
+    ctx.save();
+    ctx.translate(-camera.x, 0);
     for (const b of world.buildings) {
-      if (b.x + b.w < camera.x - 100 || b.x > camera.x + VIEW_W + 100) continue;
+      if (b.x + b.w < camera.x - 140 || b.x > camera.x + VIEW_W + 140) continue;
       this.drawBuilding(ctx, b, pal, dark, survival);
     }
-
-    this.drawStreet(ctx, world, camera, pal, dark, survival);
     this.drawProps(ctx, world, camera, survival);
+    ctx.restore();
   }
 
   drawBuilding(ctx, b, pal, dark, survival) {
@@ -323,40 +329,84 @@ export class Background {
       }
     }
 
-    // Storefront band.
+    // Storefront band, styled per building variant.
     const sfTop = GROUND_Y - 92;
+    const glowA = 0.25 + dark * 0.5;
     ctx.fillStyle = mixHex(base, '#0a0f19', 0.42);
     ctx.fillRect(x + 6, sfTop, w - 12, 92);
-    // Shop window glow.
-    const glowA = 0.25 + dark * 0.5;
-    ctx.fillStyle = `rgba(255, 206, 140, ${glowA * 0.5})`;
-    ctx.fillRect(x + 18, sfTop + 14, w * 0.36, 56);
-    ctx.fillStyle = `rgba(120, 200, 230, ${glowA * 0.35})`;
-    ctx.fillRect(x + w * 0.52, sfTop + 14, w * 0.16, 56);
-    // Door.
-    ctx.fillStyle = 'rgba(20, 26, 38, 0.9)';
-    ctx.fillRect(x + w - 78, sfTop + 26, 44, 66);
-    ctx.fillStyle = 'rgba(255, 220, 160, 0.25)';
-    ctx.fillRect(x + w - 70, sfTop + 34, 28, 40);
 
-    // Sign.
+    if (b.variant === 'shop') {
+      // Bright shop window with a warm interior and a doorway of light.
+      ctx.fillStyle = rgba(b.shopColor, 0.3 + glowA * 0.45);
+      ctx.fillRect(x + 16, sfTop + 12, w * 0.5, 60);
+      ctx.fillStyle = 'rgba(20, 26, 38, 0.9)';
+      ctx.fillRect(x + 16 + w * 0.5 + 10, sfTop + 24, 42, 68);
+      ctx.fillStyle = `rgba(255, 230, 190, ${0.2 + dark * 0.35})`;
+      ctx.fillRect(x + 22 + w * 0.5 + 10, sfTop + 34, 26, 46);
+      // Shelves / goods silhouettes.
+      ctx.fillStyle = 'rgba(20, 26, 38, 0.45)';
+      for (let i = 0; i < 3; i++) ctx.fillRect(x + 24 + i * (w * 0.15), sfTop + 44, w * 0.1, 22);
+      // Neon strip under the awning line.
+      ctx.save();
+      ctx.shadowColor = b.shopColor;
+      ctx.shadowBlur = 10 + dark * 20;
+      ctx.fillStyle = b.shopColor;
+      ctx.globalAlpha = 0.5 + dark * 0.45;
+      ctx.fillRect(x + 14, sfTop + 6, w * 0.62, 3);
+      ctx.restore();
+    } else if (b.variant === 'warehouse') {
+      // Roller shutter with ribs and a small service door.
+      ctx.fillStyle = 'rgba(30, 38, 52, 0.9)';
+      ctx.fillRect(x + 20, sfTop + 10, w * 0.55, 76);
+      ctx.strokeStyle = 'rgba(90, 104, 128, 0.35)';
+      ctx.lineWidth = 2;
+      for (let i = 0; i < 8; i++) {
+        ctx.beginPath();
+        ctx.moveTo(x + 20, sfTop + 16 + i * 9);
+        ctx.lineTo(x + 20 + w * 0.55, sfTop + 16 + i * 9);
+        ctx.stroke();
+      }
+      ctx.fillStyle = 'rgba(20, 26, 38, 0.9)';
+      ctx.fillRect(x + w - 60, sfTop + 30, 34, 62);
+      ctx.fillStyle = `rgba(255, 200, 140, ${0.15 + dark * 0.25})`;
+      ctx.fillRect(x + w - 54, sfTop + 38, 22, 30);
+    } else {
+      ctx.fillStyle = `rgba(255, 206, 140, ${glowA * 0.5})`;
+      ctx.fillRect(x + 18, sfTop + 14, w * 0.36, 56);
+      ctx.fillStyle = `rgba(120, 200, 230, ${glowA * 0.35})`;
+      ctx.fillRect(x + w * 0.52, sfTop + 14, w * 0.16, 56);
+      ctx.fillStyle = 'rgba(20, 26, 38, 0.9)';
+      ctx.fillRect(x + w - 78, sfTop + 26, 44, 66);
+      ctx.fillStyle = 'rgba(255, 220, 160, 0.25)';
+      ctx.fillRect(x + w - 70, sfTop + 34, 28, 40);
+    }
+
+    // Sign: a lit neon board for shops, painted lettering otherwise.
     if (b.sign) {
       const sx = x + 22;
       const sy = sfTop - 26;
+      const label = b.sign;
       ctx.save();
-      ctx.shadowColor = b.signColor;
-      ctx.shadowBlur = 12 + dark * 18;
-      ctx.fillStyle = b.signColor;
-      ctx.globalAlpha = 0.55 + dark * 0.4;
       ctx.font = '700 15px ui-rounded, "Trebuchet MS", sans-serif';
-      ctx.fillText(b.sign, sx, sy);
+      const tw = ctx.measureText(label).width;
+      if (b.neon) {
+        fillRound(ctx, sx - 10, sy - 20, tw + 20, 26, 7, rgba(b.signColor, 0.16 + dark * 0.14));
+        ctx.strokeStyle = b.signColor;
+        ctx.lineWidth = 1.4;
+        ctx.globalAlpha = 0.5 + dark * 0.4;
+        roundRect(ctx, sx - 10, sy - 20, tw + 20, 26, 7);
+        ctx.stroke();
+      }
+      ctx.shadowColor = b.signColor;
+      ctx.shadowBlur = 12 + dark * 22;
+      ctx.fillStyle = b.signColor;
+      ctx.globalAlpha = 0.6 + dark * 0.4;
+      ctx.fillText(label, sx, sy);
+      if (b.neon) {
+        ctx.globalAlpha = 0.35 + dark * 0.3;
+        ctx.fillRect(sx - 4, sy + 6, tw + 8, 2);
+      }
       ctx.restore();
-      ctx.strokeStyle = 'rgba(12, 18, 30, 0.7)';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(sx - 4, sy - 20);
-      ctx.lineTo(sx + 96, sy - 20);
-      ctx.stroke();
     }
 
     // Fire escape zigzag on the facade.
@@ -383,11 +433,22 @@ export class Background {
       }
     }
 
-    // Parapet + rooftop clutter.
+    // Parapet + rooftop clutter (stepped silhouette on lofts).
     ctx.fillStyle = mixHex(base, '#0a0f19', 0.2);
     ctx.fillRect(x - 4, b.roofY - 4, w + 8, 14);
     ctx.fillStyle = mixHex(base, '#ffffff', 0.08);
     ctx.fillRect(x - 4, b.roofY - 4, w + 8, 3);
+    if (b.variant === 'loft') {
+      // Owning the split-level look: a raised block on one side of the roof.
+      const stepW = Math.min(120, w * 0.34);
+      const stepX = x + w - stepW - 6;
+      ctx.fillStyle = mixHex(base, '#0a0f19', 0.28);
+      ctx.fillRect(stepX, b.roofY - 26, stepW, 26);
+      ctx.fillStyle = mixHex(base, '#ffffff', 0.07);
+      ctx.fillRect(stepX, b.roofY - 26, stepW, 3);
+      ctx.fillStyle = `rgba(255, 214, 150, ${0.16 + dark * 0.2})`;
+      ctx.fillRect(stepX + 14, b.roofY - 20, 22, 12);
+    }
     for (let i = 0; i < Math.floor(w / 70); i++) {
       const vx = x + 26 + i * 70;
       if (hash(b.seed + i * 3.3) > 0.55) {
@@ -535,15 +596,10 @@ export class Background {
       this.drawPuddle(ctx, p, dark);
     }
 
-    // Solid props.
+    // Solid props draw themselves: one object holds both box and artwork.
     for (const s of world.solids) {
       if (s.x + s.w < camera.x - 80 || s.x > camera.x + VIEW_W + 80) continue;
-      if (s.kind === 'dumpster') this.drawDumpster(ctx, s, dark);
-      else if (s.kind === 'awning') this.drawAwning(ctx, s, dark);
-      else if (s.kind === 'balcony') this.drawBalcony(ctx, s);
-      else if (s.kind === 'crate') this.drawCrate(ctx, s);
-      else if (s.kind === 'roof') this.drawRoofEdge(ctx, s);
-      else if (s.kind === 'tank') this.drawRoofTankPlatform(ctx, s);
+      if (typeof s.draw === 'function') s.draw(ctx, { darkness: dark });
     }
   }
 
@@ -654,155 +710,6 @@ export class Background {
     }
     ctx.restore();
   }
-
-  drawDumpster(ctx, s, dark) {
-    const x = s.x;
-    const y = s.y;
-    const w = s.w;
-    const h = s.h;
-    // Body.
-    const g = ctx.createLinearGradient(0, y, 0, y + h);
-    g.addColorStop(0, '#3f6b5f');
-    g.addColorStop(1, '#223c39');
-    ctx.fillStyle = g;
-    roundRect(ctx, x, y + 6, w, h - 6, 4);
-    ctx.fill();
-    // Lid.
-    ctx.fillStyle = '#2c504a';
-    roundRect(ctx, x - 4, y, w + 8, 12, 3);
-    ctx.fill();
-    ctx.fillStyle = 'rgba(255,255,255,0.08)';
-    ctx.fillRect(x, y + 2, w, 2);
-    // Ribs.
-    ctx.strokeStyle = 'rgba(10, 20, 18, 0.4)';
-    ctx.lineWidth = 2;
-    for (let i = 1; i < 4; i++) {
-      ctx.beginPath();
-      ctx.moveTo(x + (w / 4) * i, y + 12);
-      ctx.lineTo(x + (w / 4) * i, y + h - 6);
-      ctx.stroke();
-    }
-    // Graffiti tag.
-    ctx.strokeStyle = 'rgba(240, 210, 120, 0.35)';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(x + 14, y + h - 22);
-    ctx.quadraticCurveTo(x + 26, y + h - 34, x + 34, y + h - 20);
-    ctx.quadraticCurveTo(x + 40, y + h - 30, x + 50, y + h - 22);
-    ctx.stroke();
-    // Wheels.
-    ctx.fillStyle = '#171d24';
-    ctx.beginPath();
-    ctx.arc(x + 16, y + h - 4, 6, 0, Math.PI * 2);
-    ctx.arc(x + w - 16, y + h - 4, 6, 0, Math.PI * 2);
-    ctx.fill();
-  }
-
-  drawAwning(ctx, s, dark) {
-    const x = s.x;
-    const y = s.y;
-    const w = s.w;
-    // Striped fabric.
-    for (let i = 0; i < Math.ceil(w / 22); i++) {
-      ctx.fillStyle = i % 2 ? '#8c3f45' : '#d8c7a8';
-      ctx.beginPath();
-      ctx.moveTo(x + i * 22, y);
-      ctx.lineTo(x + (i + 1) * 22, y);
-      ctx.lineTo(x + (i + 1) * 22 + 2, y + 14);
-      ctx.lineTo(x + i * 22 + 2, y + 14);
-      ctx.closePath();
-      ctx.fill();
-    }
-    // Scalloped edge.
-    ctx.fillStyle = '#8c3f45';
-    for (let i = 0; i < Math.ceil(w / 22); i++) {
-      ctx.beginPath();
-      ctx.arc(x + i * 22 + 11, y + 15, 10, 0, Math.PI);
-      ctx.fill();
-    }
-    // Support struts.
-    ctx.strokeStyle = 'rgba(40, 46, 58, 0.8)';
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.moveTo(x + 6, y + 16);
-    ctx.lineTo(x + 6, y + 8);
-    ctx.moveTo(x + w - 6, y + 16);
-    ctx.lineTo(x + w - 6, y + 8);
-    ctx.stroke();
-    // Top surface line (standable).
-    ctx.strokeStyle = 'rgba(255, 245, 220, 0.35)';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(x, y + 1);
-    ctx.lineTo(x + w, y + 1);
-    ctx.stroke();
-  }
-
-  drawBalcony(ctx, s) {
-    const x = s.x;
-    const y = s.y;
-    const w = s.w;
-    ctx.fillStyle = '#2a3344';
-    ctx.fillRect(x, y + 2, w, 8);
-    ctx.strokeStyle = 'rgba(150, 175, 205, 0.5)';
-    ctx.lineWidth = 2;
-    for (let i = 0; i < w; i += 12) {
-      ctx.beginPath();
-      ctx.moveTo(x + i, y + 2);
-      ctx.lineTo(x + i, y - 18);
-      ctx.stroke();
-    }
-    ctx.strokeStyle = 'rgba(170, 195, 225, 0.7)';
-    ctx.lineWidth = 2.5;
-    ctx.beginPath();
-    ctx.moveTo(x, y - 18);
-    ctx.lineTo(x + w, y - 18);
-    ctx.stroke();
-    // Planters.
-    ctx.fillStyle = '#4a3a2e';
-    ctx.fillRect(x + 10, y - 14, 20, 12);
-    ctx.fillStyle = 'rgba(110, 170, 110, 0.8)';
-    ctx.beginPath();
-    ctx.arc(x + 20, y - 18, 8, Math.PI, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = '#3e3126';
-    ctx.fillRect(x + w - 34, y - 14, 22, 12);
-    ctx.fillStyle = 'rgba(150, 190, 120, 0.7)';
-    ctx.beginPath();
-    ctx.arc(x + w - 23, y - 18, 7, Math.PI, Math.PI * 2);
-    ctx.fill();
-  }
-
-  drawCrate(ctx, s) {
-    ctx.fillStyle = '#8a6136';
-    ctx.fillRect(s.x, s.y, s.w, s.h);
-    ctx.strokeStyle = 'rgba(60, 40, 20, 0.6)';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(s.x + 1, s.y + 1, s.w - 2, s.h - 2);
-    ctx.beginPath();
-    ctx.moveTo(s.x + 4, s.y + 4);
-    ctx.lineTo(s.x + s.w - 4, s.y + s.h - 4);
-    ctx.moveTo(s.x + s.w - 4, s.y + 4);
-    ctx.lineTo(s.x + 4, s.y + s.h - 4);
-    ctx.stroke();
-    ctx.fillStyle = 'rgba(255, 230, 190, 0.12)';
-    ctx.fillRect(s.x, s.y, s.w, 3);
-  }
-
-  drawRoofEdge(ctx, s) {
-    ctx.fillStyle = 'rgba(12, 18, 28, 0.85)';
-    ctx.fillRect(s.x, s.y, s.w, s.h);
-    ctx.fillStyle = 'rgba(180, 200, 225, 0.18)';
-    ctx.fillRect(s.x, s.y, s.w, 2.5);
-  }
-
-  drawRoofTankPlatform(ctx, s) {
-    ctx.fillStyle = '#4c3a2c';
-    ctx.fillRect(s.x, s.y, s.w, s.h + 2);
-    ctx.fillStyle = 'rgba(255, 240, 210, 0.16)';
-    ctx.fillRect(s.x, s.y, s.w, 2);
-  }
-
   // ------------------------------------------------------------- weather ---
 
   drawWeather(ctx, { world, survival, camera }) {
@@ -855,7 +762,7 @@ export class Background {
       // Warm light pools (additive) under lamps and around the cat.
       ctx.save();
       ctx.globalCompositeOperation = 'lighter';
-      ctx.globalAlpha = 0.55 * dark;
+      ctx.globalAlpha = 0.38 * dark;
       for (const chunk of world.chunks.values()) {
         for (const d of chunk.decor) {
           if (d.type !== 'lamp') continue;
@@ -872,7 +779,7 @@ export class Background {
       // Cat's own little pool of visibility.
       ctx.save();
       ctx.translate(cat.centerX, cat.centerY);
-      ctx.globalAlpha = 0.35 * dark;
+      ctx.globalAlpha = 0.26 * dark;
       ctx.fillStyle = this.glow(ctx, 170, '200, 220, 255');
       ctx.beginPath();
       ctx.arc(0, 0, 170, 0, Math.PI * 2);

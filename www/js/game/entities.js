@@ -162,6 +162,77 @@ export class Food extends Entity {
 // ------------------------------------------------------------- furniture ----
 
 /** Cardboard box / warm vent: a safe place to sleep. */
+/**
+ * Golden fish: a collectible that only spawns on rooftops and tank decks.
+ * Collecting enough of them permanently teaches the cat a double jump.
+ */
+export class GoldenFish extends Entity {
+  constructor(x, groundY, chunkIndex = -1) {
+    super(chunkIndex);
+    this.kind = 'goldfish';
+    this.w = 30;
+    this.h = 16;
+    this.x = x - this.w / 2;
+    this.baseY = groundY - this.h - 12;
+    this.y = this.baseY;
+    this.phase = Math.random() * Math.PI * 2;
+  }
+
+  update(dt) {
+    this.phase += dt * 2.4;
+    this.y = this.baseY + Math.sin(this.phase) * 3;
+  }
+
+  draw(ctx, { darkness = 0 } = {}) {
+    const cx = this.cx;
+    const cy = this.cy;
+    const glow = 0.5 + darkness * 0.5;
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, 34);
+    g.addColorStop(0, `rgba(255, 214, 120, ${0.4 * glow})`);
+    g.addColorStop(1, 'rgba(255, 214, 120, 0)');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(cx, cy, 34, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(Math.sin(this.phase) * 0.18);
+    // Body.
+    ctx.fillStyle = '#ffcf5c';
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 11, 7, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // Tail.
+    ctx.beginPath();
+    ctx.moveTo(-9, 0);
+    ctx.lineTo(-17, -7);
+    ctx.lineTo(-15, 0);
+    ctx.lineTo(-17, 7);
+    ctx.closePath();
+    ctx.fill();
+    // Fin + shine.
+    ctx.fillStyle = 'rgba(255, 245, 200, 0.85)';
+    ctx.beginPath();
+    ctx.ellipse(1, -5, 5, 2.4, -0.3, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#7a4a12';
+    ctx.beginPath();
+    ctx.arc(6, -1.5, 1.5, 0, Math.PI * 2);
+    ctx.fill();
+    // Sparkles.
+    ctx.fillStyle = 'rgba(255, 255, 230, 0.9)';
+    const tw = 0.6 + Math.sin(this.phase * 2) * 0.4;
+    ctx.globalAlpha = tw;
+    ctx.fillRect(10, -10, 2, 2);
+    ctx.fillRect(-12, 8, 1.6, 1.6);
+    ctx.restore();
+  }
+}
+
 export class RestSpot extends Entity {
   constructor(x, groundY, kind = 'box', chunkIndex = -1) {
     super(chunkIndex);

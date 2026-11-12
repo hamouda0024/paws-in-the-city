@@ -5,9 +5,12 @@
  *
  * Also owns weather, traffic and the world's solid-collider list.
  */
-import { VIEW_W, GROUND_Y, TIERS, WEATHER, HAZARD } from '../config.js';
+import { VIEW_W, GROUND_Y, TIERS, WEATHER, HAZARD, FEEL, QUEST } from '../config.js';
 import { mulberry32, randRange, pick, clamp, approach, lerp } from '../core/rng.js';
-import { Car, Dog, Human, Mouse, Food, RestSpot } from './entities.js';
+import { Car, Dog, Human, Mouse, Food, RestSpot, GoldenFish } from './entities.js';
+import {
+  makeDumpster, makeAwning, makeBalcony, makeCrate, makeRoof, makeTankPlatform, makeSteps
+} from './props.js';
 
 export const CHUNK_W = 960;
 const KEEP_BEHIND = 2;
@@ -34,6 +37,7 @@ export class World {
     this.rainTarget = 0;
     this.raining = false;
     this.weatherTimer = randRange(Math.random, 38, 70);
+    this.forcingRain = false;
     this.carTimer = 9;
     this.trafficDir = 1;
     this.trafficFlip = 26;
@@ -107,6 +111,24 @@ export class World {
     return solid;
   }
 
+  /**
+   * Props are solids: the same object draws itself and collides, and it is
+   * always registered with the building that owns it.
+   */
+  addProp(chunk, prop) {
+    chunk.solids.push(prop);
+    this.solids.push(prop);
+    const b = prop.building;
+    if (b) {
+      b.props = b.props || [];
+      b.props.push(prop);
+      // Hard guard: a prop may never hang outside the facade it belongs to.
+      if (prop.x < b.x + 6) prop.x = b.x + 6;
+      if (prop.x + prop.w > b.x + b.w - 6) prop.x = b.x + b.w - 6 - prop.w;
+    }
+    return prop;
+  }
+
   spawn(entity, chunk) {
     if (chunk) entity.chunkIndex = chunk.index;
     this.entities.push(entity);
@@ -176,59 +198,94 @@ export class World {
       this.spawn(new Food(this.spawnX + 260, GROUND_Y, 'fishBones', index), chunk);
     }
 
+    // ---- golden fish: a high-risk collectible on the rooftops
+    const perchBuilding = chunk.buildings[rand() < 0.5 ? 0 : chunk.buildings.length - 1];
+    if (perchBuilding && rand() < 0.55) {
+      const onTank = perchBuilding.waterTank && rand() < 0.5;
+      const gx = onTank
+        ? perchBuilding.tankX + 40
+        : perchBuilding.x + randRange(rand, 40, perchBuilding.w - 50);
+      const gy = onTank ? perchBuilding.roofY - 62 : perchBuilding.roofY;
+      this.spawn(new GoldenFish(gx, gy, index), chunk);
+    }
+
     this.generateDecor(chunk, rand);
   }
 
   addBuilding(chunk, bx, bw, rand, index) {
-    const roofY = pick(rand, [TIERS.roof, 242]);
+    // Architectural variety: apartment block, lit shop, stepped loft, warehouse.
+    const variant = pick(rand, ['apartment', 'shop', 'loft', 'warehouse']);
+    const roofY = variant === 'loft'
+      ? pick(rand, [212, 226])
+      : pick(rand, [TIERS.roof, 242, 256]);
     const b = {
       x: bx,
       w: bw,
       roofY,
-      tone: randRange(rand, 0.24, 0.62),
+      variant,
+      tone: randRange(rand, 0.18, 0.72),
       seed: Math.floor(rand() * 10000),
-      sign: rand() < 0.5 ? pick(rand, ['HOTEL', '24H', 'CAFÉ', 'PHARMACY', 'NOODLES', 'PAWN', 'LAUNDRY', 'BAR']) : null,
-      signColor: pick(rand, ['#ff7b6b', '#69d2e7', '#ffd166', '#c792ea', '#7ee7a8']),
-      waterTank: rand() < 0.4,
-      antenna: rand() < 0.5,
+      sign: (variant === 'shop' || rand() < 0.4)
+        ? pick(rand, ['HOTEL', '24H', 'CAFÉ', 'PHARMACY', 'NOODLES', 'PAWN', 'LAUNDRY', 'BAR', 'RAMEN', 'ARCADE'])
+        : null,
+      signColor: pick(rand, ['#ff7b6b', '#69d2e7', '#ffd166', '#c792ea', '#7ee7a8', '#ff9ecd']),
+      neon: variant === 'shop' || rand() < 0.28,
+      shopColor: pick(rand, ['#ffcf8f', '#ffd166', '#a9e7ff', '#ffb3c1', '#c6a6ff']),
       balcony: null,
+      props: [],
+      waterTank: variant !== 'shop' && rand() < 0.45,
+      antenna: rand() < 0.5
     };
     chunk.buildings.push(b);
     this.buildings.push(b);
 
-    // Roof is a one-way platform so jumps from below pass through and land on top.
-    this.addSolid(chunk, { x: bx + 6, y: roofY, w: bw - 12, h: 10, kind: 'roof', oneWay: true, building: b });
+    // Roof: one-way platform drawn as the visible parapet it collides with.
+    this.addProp(chunk, makeRoof(b));
 
-    // Rooftop tank platform gives a high, dog-free perch.
+    // Rooftop water tank gives a high, dog-free perch.
     if (b.waterTank) {
-      const tankX = bx + bw * 0.62;
-      this.addSolid(chunk, { x: tankX, y: roofY - 62, w: 96, h: 10, kind: 'tank', oneWay: true });
+      const tankW = 96;
+      const tankX = clamp(bx + bw * 0.62, bx + 12, bx + bw - tankW - 12);
       b.tankX = tankX;
+      this.addProp(chunk, makeTankPlatform(b, tankX, roofY - 62, tankW));
     }
 
-    // Climb chain: dumpster -> awning -> balcony -> roof.
-    const dumpX = bx + randRange(rand, 50, Math.max(60, bw * 0.42));
-    const dumpster = this.addSolid(chunk, {
-      x: dumpX, y: TIERS.dumpster, w: 86, h: GROUND_Y - TIERS.dumpster,
-      kind: 'dumpster', oneWay: false, rummaged: false, looted: 0
-    });
+    // Stepped loft roof: an extra half-height ledge on the way up.
+    if (variant === 'loft' && bw > 300) {
+      const stepW = 96;
+      const sx = clamp(bx + bw * 0.56, bx + 14, bx + bw - stepW - 14);
+      this.addProp(chunk, makeSteps(b, sx, roofY - 50, stepW, 24));
+    }
+
+    // Climb chain: dumpster -> awning -> balcony -> roof. Everything is clamped
+    // to the facade so no prop can ever float outside a building.
+    const dumpW = 88;
+    const dumpX = clamp(
+      bx + randRange(rand, 24, Math.max(34, bw * 0.34)),
+      bx + 10,
+      bx + bw - dumpW - 10
+    );
+    const dumpster = makeDumpster(b, dumpX, TIERS.dumpster, dumpW);
+    this.addProp(chunk, dumpster);
     chunk.dumpster = dumpster;
 
-    const awningX = clamp(dumpX - 26, bx + 8, bx + bw - 140);
-    this.addSolid(chunk, { x: awningX, y: TIERS.awning, w: 138, h: 10, kind: 'awning', oneWay: true });
+    const awnW = Math.min(150, bw - 28);
+    const awningX = clamp(dumpX - 26, bx + 14, bx + bw - awnW - 14);
+    this.addProp(chunk, makeAwning(b, awningX, TIERS.awning, awnW));
 
-    if (roofY <= TIERS.roof + 4) {
-      const balX = clamp(awningX + 46, bx + 10, bx + bw - 160);
-      const balcony = this.addSolid(chunk, { x: balX, y: TIERS.balcony, w: 152, h: 10, kind: 'balcony', oneWay: true });
-      b.balcony = { x: balX, y: TIERS.balcony, w: 152 };
-      b.balconySolid = balcony;
+    if (roofY <= TIERS.roof + 8) {
+      const balW = Math.min(152, bw - 40);
+      const balX = clamp(awningX + 40, bx + 20, bx + bw - balW - 20);
+      this.addProp(chunk, makeBalcony(b, balX, TIERS.balcony, balW));
+      b.balcony = { x: balX, y: TIERS.balcony, w: balW };
     }
 
-    // A crate near the dumpster for a second way up.
-    if (rand() < 0.45) {
-      const crX = dumpX + 96 + randRange(rand, 0, 40);
-      if (crX + 52 < bx + bw) {
-        this.addSolid(chunk, { x: crX, y: GROUND_Y - 46, w: 54, h: 46, kind: 'crate', oneWay: false });
+    // A crate beside the dumpster: a second route up, and a hiding spot.
+    if (rand() < 0.62 && bw > 300) {
+      const crateW = 54;
+      const crX = clamp(dumpX + dumpW + 26, bx + 10, bx + bw - crateW - 10);
+      if (crX > dumpX + dumpW + 12) {
+        this.addProp(chunk, makeCrate(b, crX, GROUND_Y - 46, crateW));
       }
     }
   }
@@ -327,6 +384,12 @@ export class World {
         this.weatherTimer = randRange(Math.random, WEATHER.rainMin, WEATHER.rainMax);
       }
     }
+    // A "shelter" quest can request a storm so it is always playable.
+    if (this.forcingRain && !this.raining) {
+      this.raining = true;
+      this.rainTarget = 1;
+      this.weatherTimer = Math.max(this.weatherTimer, 24);
+    }
     this.rainAmount = approach(this.rainAmount, this.rainTarget, dt / WEATHER.rainFade);
 
     this.ensureChunks(camera.x);
@@ -350,6 +413,14 @@ export class World {
     if (this.entities.length > 90) this.entities = this.entities.filter((e) => !e.dead);
 
     this.updateTraffic(dt, game, difficulty);
+
+    // Rain actually lands: splashes on the street and on rooftops near the cat.
+    if (this.rainAmount > 0.25 && Math.random() < dt * FEEL.rainSplashRate) {
+      const x = camera.x + Math.random() * VIEW_W;
+      const roofs = this.solidsNear(x, 40).filter((s) => s.oneWay && s.y < GROUND_Y - 40);
+      const y = roofs.length ? roofs[0].y : GROUND_Y;
+      game.particles.splash(x, y, 2, 'rgba(170, 215, 245, 0.55)');
+    }
 
     // Puddle shimmer particles.
     for (const p of this.puddles) {

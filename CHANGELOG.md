@@ -3,6 +3,38 @@
 All notable changes to Urban Stray are documented here.
 This project follows [Semantic Versioning](https://semver.org/).
 
+## [1.2.0] — 2026-11-12
+
+### Fixed
+- **Invisible city / floating cat.** Buildings, awnings, balconies, crates and
+  dumpsters were drawn in world coordinates without the camera offset, so past the
+  first screen they vanished while their colliders stayed behind. The structural layer
+  is now translated by the camera, which fixes the cat standing on air, invisible
+  walls and “Rummage the dumpster” prompts pointing at nothing.
+- Every climbable prop is now a single `Prop` object that owns its collision box *and*
+  its artwork, and is clamped inside the building that owns it — draw and hitbox can
+  no longer drift apart.
+
+### Changed
+- **True full-screen play.** The fixed 960×540 letterbox is gone: the virtual view
+  height stays 540 while its width follows the screen aspect, so the city fills the
+  whole display with no bars or gutters. A `ResizeObserver` re-fits the canvas on any
+  layout change.
+- **Rebuilt touch controls:** ◀ and ▶ sit side by side, every pad is ~35% larger, the
+  sprint pad is stacked above the jump pad, and the paw button only appears when
+  something is actually in reach — with a pulsing highlight and a labelled action.
+- **Varied city:** apartment blocks, lit shops with neon signs, stepped lofts and roller-
+  shuttered warehouses, each with its own storefront, palette and roofline.
+
+### Added
+- **Game feel:** dust on jumps and landings, camera shake from hard landings and from
+  fast traffic passing close, stronger cat-eyeshine at night, and real rain splashes
+  that land on the street and on rooftops.
+- **Dynamic quests:** shelter from a storm, sneak past a stray dog, and collect golden
+  fish on the rooftops. Quests pay food and rotate through the run.
+- **Golden fish + double jump:** three golden fish permanently unlock a mid-air second
+  jump (saved between runs).
+
 ## [1.1.0] — 2026-11-12
 
 ### Added

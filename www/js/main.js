@@ -2,7 +2,7 @@
  * Boot: canvas sizing (letterboxed 960x540 virtual view), input mapping,
  * settings load, and the frame loop.
  */
-import { VIEW_W, VIEW_H, SETTINGS_KEY } from './config.js';
+import { VIEW_W, VIEW_H, SETTINGS_KEY, setViewport } from './config.js';
 import { Input } from './core/input.js';
 import { AudioEngine } from './core/audio.js';
 import { Game } from './game/game.js';
@@ -42,21 +42,23 @@ const game = new Game({ canvas, ctx, input, audio, settings });
 function resize() {
   const rect = canvas.getBoundingClientRect();
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
-  const cssW = rect.width;
-  const cssH = rect.height;
+  const cssW = Math.max(1, rect.width);
+  const cssH = Math.max(1, rect.height);
   canvas.width = Math.round(cssW * dpr);
   canvas.height = Math.round(cssH * dpr);
 
-  // Letterbox: keep the 16:9 virtual view fully visible on any screen.
-  const scale = Math.min(cssW / VIEW_W, cssH / VIEW_H);
+  // Full-bleed: a fixed 540-unit tall world whose width follows the screen, so
+  // the city covers every pixel of the phone — no bars, no blurry side gutters.
+  const aspect = cssW / cssH;
+  const vw = setViewport(VIEW_H * aspect);
+  const scale = Math.max(cssW / vw, cssH / VIEW_H);
   view.scale = scale;
-  view.ox = (cssW - VIEW_W * scale) / 2;
+  view.ox = (cssW - vw * scale) / 2;
   view.oy = (cssH - VIEW_H * scale) / 2;
   view.cssW = cssW;
   view.cssH = cssH;
   view.dpr = dpr;
 
-  // Match the page background to the letterbox so bars look intentional.
   document.body.style.background = '#05080f';
 }
 
@@ -77,7 +79,7 @@ function frame(now) {
 
   game.update(dt);
 
-  // Clear the full device buffer (letterbox bars included), then draw in virtual space.
+  // The virtual view covers the whole buffer, so one clear is enough.
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.fillStyle = '#05080f';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -96,6 +98,11 @@ function frame(now) {
 window.addEventListener('resize', resize);
 window.addEventListener('orientationchange', () => setTimeout(resize, 120));
 if (window.visualViewport) window.visualViewport.addEventListener('resize', resize);
+// Layout can change without a window resize event (fullscreen, keyboard, split
+// screen, an embedded webview). Re-measure whenever the canvas box changes.
+if (window.ResizeObserver) {
+  new ResizeObserver(() => resize()).observe(canvas);
+}
 
 // Resume audio only after a real gesture (browser autoplay rules).
 const unlock = () => {
