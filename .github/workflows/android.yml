@@ -11,27 +11,49 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: apk-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     name: Build APK
     runs-on: ubuntu-latest
+    env:
+      ANDROID_HOME: ${{ github.workspace }}/android-sdk
+      ANDROID_SDK_ROOT: ${{ github.workspace }}/android-sdk
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Set up JDK 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '21'
 
-      - name: Set up Node 20
+      - name: Set up Node 22
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: npm
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+      # Installed explicitly (not via a third-party action) so the SDK layout and
+      # package set are exactly what the Gradle build expects.
+      - name: Install Android SDK 36
+        run: |
+          set -euo pipefail
+          SDK="$ANDROID_HOME"
+          mkdir -p "$SDK/cmdline-tools"
+          curl -sSL -o /tmp/cmdline-tools.zip \
+            https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
+          unzip -q /tmp/cmdline-tools.zip -d "$SDK/cmdline-tools"
+          mv "$SDK/cmdline-tools/cmdline-tools" "$SDK/cmdline-tools/latest"
+          SDKM="$SDK/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$SDKM" --sdk_root="$SDK" --licenses > /dev/null 2>&1 || true
+          "$SDKM" --sdk_root="$SDK" "platform-tools" "platforms;android-36" "build-tools;36.0.0"
+          echo "ANDROID_HOME=$SDK" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$SDK" >> "$GITHUB_ENV"
+          echo "$SDK/platform-tools" >> "$GITHUB_PATH"
 
       - name: Install dependencies
         run: npm ci
@@ -49,7 +71,7 @@ jobs:
           KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
-          if [ -n "$KEYSTORE_BASE64" ]; then
+          if [ -n "${KEYSTORE_BASE64:-}" ]; then
             echo "$KEYSTORE_BASE64" | base64 -d > android/urban-stray.keystore
             {
               echo "storeFile=urban-stray.keystore"
@@ -65,10 +87,11 @@ jobs:
       - name: Assemble
         working-directory: android
         run: |
+          chmod +x ./gradlew
           if [ "${{ steps.signing.outputs.mode }}" = "release" ]; then
-            ./gradlew assembleRelease --console=plain
+            ./gradlew assembleRelease --console=plain --no-daemon
           else
-            ./gradlew assembleDebug --console=plain
+            ./gradlew assembleDebug --console=plain --no-daemon
           fi
 
       - name: Collect APK
@@ -79,7 +102,7 @@ jobs:
           else
             cp android/app/build/outputs/apk/debug/app-debug.apk dist/urban-stray.apk
           fi
-          ls -lh dist/
+          ls -lh dist/urban-stray.apk
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
