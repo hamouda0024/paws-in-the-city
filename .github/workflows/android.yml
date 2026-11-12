@@ -120,3 +120,57 @@ jobs:
           files: dist/urban-stray.apk
           generate_release_notes: true
           fail_on_unmatched_files: true
+
+  # Creates the official Release for the version in www/version.json once per
+  # version, straight from a push to main. The tag, notes and the committed
+  # signed APK all come from the repository, so a release never depends on
+  # anyone's local credentials. Existing releases are left untouched.
+  release:
+    name: Publish GitHub Release
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Release the version in www/version.json
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          VERSION=$(python3 -c "import json;print(json.load(open('www/version.json'))['version'])")
+          NOTES=$(python3 -c "import json;print(json.load(open('www/version.json')).get('notes',''))")
+          TAG="v$VERSION"
+          APK="releases/urban-stray-$TAG.apk"
+
+          if [ ! -f "$APK" ]; then
+            echo "No committed APK at $APK — build and commit it first."
+            exit 1
+          fi
+
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release $TAG already exists; nothing to do."
+            exit 0
+          fi
+
+          {
+            echo "## What's new in $TAG"
+            echo
+            echo "$NOTES"
+            echo
+            echo "**Signed release build** · Android 7.0+ (API 24) · landscape · works offline, no ads, no accounts."
+            echo
+            echo "APK size: $(du -h "$APK" | cut -f1) · SHA-256: $(sha256sum "$APK" | cut -d' ' -f1)"
+            echo
+            echo "Full changelog: https://github.com/$GITHUB_REPOSITORY/blob/main/CHANGELOG.md"
+          } > /tmp/release-notes.md
+
+          gh release create "$TAG" "$APK#urban-stray-$TAG.apk" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "Urban Stray $TAG" \
+            --notes-file /tmp/release-notes.md
+
+          echo "Published $TAG"
