@@ -16,8 +16,9 @@ your three bars run out.
 
 ## ⬇️ Download
 
-### [**Download Urban Stray v1.2.0 (APK, 4.3 MB)**](https://github.com/hamouda0024/paws-in-the-city/raw/main/releases/urban-stray-v1.2.0.apk)
+### [**Download Urban Stray v1.2.0 (APK, 4.2 MB)**](https://github.com/hamouda0024/paws-in-the-city/releases/download/v1.2.0/urban-stray-v1.2.0.apk)
 
+Official tagged release · [all releases](https://github.com/hamouda0024/paws-in-the-city/releases) ·
 Signed release build · Android 7.0+ (API 24) · landscape · works offline, no ads, no accounts.
 
 **New in 1.2.0**
