@@ -173,7 +173,7 @@ export class Screens {
     // The stray, sitting under the rain.
     const cat = game.titleCat;
     if (cat) {
-      cat.x = 404;
+      cat.x = VIEW_W * 0.34;
       cat.y = GROUND_Y - cat.h;
       cat.squash = 0;
       cat.stretch = 0;
@@ -191,7 +191,7 @@ export class Screens {
     game.background.drawWeather(ctx, { world, survival: mockSurvival, camera });
     game.background.drawLighting(ctx, {
       world, survival: mockSurvival, camera,
-      cat: { centerX: 420, centerY: GROUND_Y - 20 }
+      cat: { centerX: VIEW_W * 0.34 + 16, centerY: GROUND_Y - 20 }
     });
   }
 
@@ -381,8 +381,9 @@ export class Screens {
     this.drawCityBackdrop(ctx);
     this.drawBackdrop(ctx, { dark: 0.75 });
 
-    fillRound(ctx, 230, 60, 500, VIEW_H - 130, 18, 'rgba(9, 14, 26, 0.92)');
-    roundRect(ctx, 230, 60, 500, VIEW_H - 130, 18);
+    const panelX = VIEW_W / 2 - 250;
+    fillRound(ctx, panelX, 60, 500, VIEW_H - 130, 18, 'rgba(9, 14, 26, 0.92)');
+    roundRect(ctx, panelX, 60, 500, VIEW_H - 130, 18);
     ctx.strokeStyle = 'rgba(140, 175, 220, 0.22)';
     ctx.lineWidth = 1;
     ctx.stroke();
@@ -504,8 +505,9 @@ export class Screens {
     ctx.fillRect(0, 0, VIEW_W, VIEW_H);
     ctx.restore();
 
-    fillRound(ctx, 320, 62, 320, VIEW_H - 140, 18, 'rgba(9, 15, 27, 0.94)');
-    roundRect(ctx, 320, 62, 320, VIEW_H - 140, 18);
+    const pauseX = VIEW_W / 2 - 160;
+    fillRound(ctx, pauseX, 62, 320, VIEW_H - 140, 18, 'rgba(9, 15, 27, 0.94)');
+    roundRect(ctx, pauseX, 62, 320, VIEW_H - 140, 18);
     ctx.strokeStyle = 'rgba(255, 190, 110, 0.35)';
     ctx.lineWidth = 1.2;
     ctx.stroke();
@@ -541,8 +543,9 @@ export class Screens {
 
     this.drawBackdrop(ctx, { dark: 0.8 });
 
-    fillRound(ctx, 254, 48, 452, VIEW_H - 118, 20, 'rgba(10, 15, 27, 0.94)');
-    roundRect(ctx, 254, 48, 452, VIEW_H - 118, 20);
+    const overX = VIEW_W / 2 - 226;
+    fillRound(ctx, overX, 48, 452, VIEW_H - 118, 20, 'rgba(10, 15, 27, 0.94)');
+    roundRect(ctx, overX, 48, 452, VIEW_H - 118, 20);
     ctx.strokeStyle = 'rgba(255, 120, 120, 0.28)';
     ctx.lineWidth = 1.2;
     ctx.stroke();
@@ -573,11 +576,12 @@ export class Screens {
       ['Time alive', sum.time]
     ];
     let y = 190;
+    const statsX = VIEW_W / 2 - 192;
     for (const [k, v] of stats) {
       ctx.fillStyle = 'rgba(255, 255, 255, 0.04)';
-      ctx.fillRect(288, y - 16, 384, 30);
-      text(ctx, k, 304, y + 4, { size: 11.5, weight: 600, color: 'rgba(180, 200, 225, 0.8)' });
-      text(ctx, v, 656, y + 4, { size: 14, weight: 800, align: 'right', color: '#fff4e6' });
+      ctx.fillRect(statsX, y - 16, 384, 30);
+      text(ctx, k, statsX + 16, y + 4, { size: 11.5, weight: 600, color: 'rgba(180, 200, 225, 0.8)' });
+      text(ctx, v, statsX + 368, y + 4, { size: 14, weight: 800, align: 'right', color: '#fff4e6' });
       y += 34;
     }
 

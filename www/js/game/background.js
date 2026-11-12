@@ -763,6 +763,9 @@ export class Background {
       ctx.save();
       ctx.globalCompositeOperation = 'lighter';
       ctx.globalAlpha = 0.38 * dark;
+      // Lamp positions are world coordinates, so this pass needs the camera too.
+      ctx.save();
+      ctx.translate(-camera.x, 0);
       for (const chunk of world.chunks.values()) {
         for (const d of chunk.decor) {
           if (d.type !== 'lamp') continue;
@@ -776,9 +779,10 @@ export class Background {
           ctx.restore();
         }
       }
-      // Cat's own little pool of visibility.
+      ctx.restore();
+      // Cat's own little pool of visibility (world space -> screen space).
       ctx.save();
-      ctx.translate(cat.centerX, cat.centerY);
+      ctx.translate(cat.centerX - camera.x, cat.centerY - camera.y);
       ctx.globalAlpha = 0.26 * dark;
       ctx.fillStyle = this.glow(ctx, 170, '200, 220, 255');
       ctx.beginPath();
