@@ -1,0 +1,33 @@
+node_modules/
+.logs/
+dist/
+artifacts/
+*.log
+
+# Build output (releases/*.apk is the committed, shareable build)
+*.apk
+*.aab
+!releases/*.apk
+
+# Android build artifacts
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/app/src/main/assets/public/
+android/app/src/main/assets/capacitor.config.json
+android/app/src/main/assets/capacitor.plugins.json
+.gradle/
+local.properties
+
+# Signing material — never commit
+android/keystore.properties
+android/*.keystore
+android/*.jks
+*.keystore
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="utf-8" />
+  <title>Urban Stray — قط المدينة</title>
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#0b1020" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="icon" href="icon-512.png" type="image/png" />
+  <link rel="apple-touch-icon" href="icon-512.png" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <canvas id="game" aria-label="Urban Stray game canvas"></canvas>
+
+  <!-- Shown only when the phone is held in portrait. -->
+  <div id="rotate-hint">
+    <div class="rotate-icon">⟳</div>
+    <p>Rotate your phone</p>
+    <span>Urban Stray is played in landscape</span>
+  </div>
+
+  <div id="boot-error" hidden>
+    <p>Failed to start the game.</p>
+    <pre id="boot-error-text"></pre>
+  </div>
+
+  <script type="module" src="js/main.js"></script>
+  <script>
+    // Surface fatal module errors instead of showing a blank screen.
+    window.addEventListener('error', (e) => {
+      const box = document.getElementById('boot-error');
+      if (!box || !box.hidden) return;
+      document.getElementById('boot-error-text').textContent = String(e.message || e.error || e);
+      box.hidden = false;
+    });
+  </script>
+</body>
+</html>

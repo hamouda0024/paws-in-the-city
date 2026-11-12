@@ -1,0 +1,74 @@
+/* Full-bleed, no-scroll game shell. The canvas letterboxes a 960x540 virtual view. */
+:root {
+  --bg: #0b1020;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: radial-gradient(circle at 50% 30%, #16203a 0%, #070a14 70%);
+  color: #e8eefc;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+  touch-action: none;
+}
+
+#game {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
+}
+
+#rotate-hint {
+  display: none;
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: #0b1020;
+  text-align: center;
+  padding: 24px;
+}
+
+#rotate-hint .rotate-icon {
+  font-size: 64px;
+  animation: spin 2.4s ease-in-out infinite;
+}
+
+#rotate-hint p { margin: 0; font-size: 20px; font-weight: 600; letter-spacing: .02em; }
+#rotate-hint span { color: #8fa3c8; font-size: 14px; }
+
+@keyframes spin {
+  0%, 40% { transform: rotate(0deg); }
+  60%, 100% { transform: rotate(-90deg); }
+}
+
+@media (orientation: portrait) and (max-width: 820px) {
+  #rotate-hint { display: flex; }
+}
+
+#boot-error {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  background: #17070a;
+  color: #ffb4b4;
+  padding: 24px;
+  font-size: 13px;
+  overflow: auto;
+}
+#boot-error pre { white-space: pre-wrap; color: #ffdede; }

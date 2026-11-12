@@ -1,0 +1,14 @@
+{
+  "appId": "com.urbanstray.cat",
+  "appName": "Urban Stray",
+  "webDir": "www",
+  "bundledWebRuntime": false,
+  "android": {
+    "backgroundColor": "#0b1020",
+    "allowMixedContent": false,
+    "webContentsDebuggingEnabled": false
+  },
+  "server": {
+    "androidScheme": "https"
+  }
+}
