@@ -150,7 +150,7 @@ export const SETTINGS_KEY = 'urban-stray-settings-v1';
 // ------------------------------------------------------- build & ownership --
 
 /** Running build version. Bump together with www/version.json and the Gradle versionName. */
-export const APP_VERSION = '1.2.0';
+export const APP_VERSION = '1.2.1';
 
 /** Public manifest used by the silent update check (override with window.__urbanStrayUpdateUrl). */
 export const UPDATE_MANIFEST_URL =

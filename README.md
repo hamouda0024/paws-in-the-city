@@ -16,25 +16,30 @@ your three bars run out.
 
 ## ⬇️ Download
 
-### [**Download Urban Stray v1.2.0 (APK, 4.2 MB)**](https://github.com/hamouda0024/paws-in-the-city/releases/download/v1.2.0/urban-stray-v1.2.0.apk)
+### [**Download Urban Stray v1.2.1 (APK, 4.3 MB)**](https://github.com/hamouda0024/paws-in-the-city/releases/download/v1.2.1/urban-stray-v1.2.1.apk)
 
 Official tagged release · [all releases](https://github.com/hamouda0024/paws-in-the-city/releases) ·
 Signed release build · Android 7.0+ (API 24) · landscape · works offline, no ads, no accounts.
 
-**New in 1.2.0**
+**New in 1.2.1** — security, stability and polish; no balance changes.
 
-- Full-screen play — the city fills the whole display, no letterbox bars or blurred gutters.
-- Fixed the world/target mismatch: buildings, awnings and dumpsters are always visible and
-  always line up with their colliders (no more standing on air or invisible walls).
-- Rebuilt touch controls: ◀ ▶ side by side, bigger pads, sprint above jump, and a paw
-  button that appears only when something is in reach.
-- Neon shops, stepped lofts, glowing signs and rain-slick streets across varied districts.
-- Dynamic quests (shelter, stealth, golden fish) and a golden-fish double jump unlock.
-- Camera shake from fast traffic, landing dust and stronger night eyeshine.
+- **Hardened update check:** a manifest is only accepted when it is strict numeric semver,
+  newer than the build, and its download URL is on this repository over HTTPS. Anything else
+  (downgrade, foreign host, plain HTTP, junk JSON) is ignored.
+- **Android hardening:** backups off, cleartext traffic off, WebView debugging off, and still
+  only `INTERNET` + `VIBRATE` permissions.
+- **SHA-256 for every APK**, plus a build script that refuses to package a mismatched version.
+- **Touch pause button** under the clock; every pad now avoids notches and rounded corners.
+- **Lighting quality (High/Low)** with an automatic, one-time drop to Low on slow devices.
+- **English / العربية interface** — Arabic is shaped and mirrored properly on the canvas.
+- Safer saves (corrupt or tampered data can no longer break the HUD) and unit tests in CI.
+
+**Still from 1.2.0:** full-screen city, fixed building/prop alignment, rebuilt touch pads,
+neon districts, dynamic quests and the golden-fish double jump.
 
 **Install on your phone**
 
-1. Download `urban-stray-v1.2.0.apk` on the device (open this repo in the phone browser,
+1. Download `urban-stray-v1.2.1.apk` on the device (open this repo in the phone browser,
    or transfer the file over USB).
 2. Tap the file. Android will ask to allow installs from your browser/file manager —
    allow **"Install unknown apps"** for that app only.
@@ -43,7 +48,7 @@ Signed release build · Android 7.0+ (API 24) · landscape · works offline, no 
 **Install over USB instead**
 
 ```bash
-adb install -r releases/urban-stray-v1.2.0.apk
+adb install -r releases/urban-stray-v1.2.1.apk
 ```
 
 **Verify your download**
@@ -52,8 +57,8 @@ Every release ships with a SHA-256 checksum (`releases/urban-stray-v<version>.ap
 also attached to the GitHub Release). After downloading:
 
 ```bash
-sha256sum urban-stray-v1.2.0.apk
-# 51397460aade7a303dfdba4f90791afee38fc7f75a3012868aecaeefddecf367
+sha256sum urban-stray-v1.2.1.apk
+# 84e622c8b2d3be74156ae8128c7f1992b7b65572a15b9ec5e544c14a98a0d538
 ```
 
 The hash must match the `.sha256` file for the same version. A mismatch means the
@@ -232,6 +237,7 @@ Survival rates are separate from physics so balance passes never touch the contr
 ```bash
 npm ci          # Capacitor CLI + Android platform (the web game itself has no dependencies)
 npm run dev     # http://localhost:3000
+npm test        # node:test suite for survival.js and rng.js (31 cases)
 ```
 
 Enable **Settings → Touch controls → Always** to preview the mobile pads on desktop.
@@ -272,13 +278,16 @@ cd android && ./gradlew assembleRelease
 | Screen | Immersive sticky — system bars hidden (`MainActivity.java`) |
 | Keep-awake | `FLAG_KEEP_SCREEN_ON` |
 | SDK | min 24, target/compile 36 |
-| Permissions | `VIBRATE` (haptics); `INTERNET` is Capacitor's default |
+| Permissions | `VIBRATE` (haptics); `INTERNET` is Capacitor's default — nothing else |
+| Backups | `android:allowBackup="false"` — save data stays on the device |
+| Cleartext | `android:usesCleartextTraffic="false"` — HTTPS only |
+| WebView debugging | `webContentsDebuggingEnabled: false` in `capacitor.config.json` |
 
 ### Continuous integration
 
-`.github/workflows/android.yml` builds on every push and pull request, uploads the APK as a
-build artifact, and — when a `v*` tag is pushed — publishes a GitHub Release with the APK
-attached. Add `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS` and
+`.github/workflows/android.yml` runs `npm test` on every push and pull request, builds the
+APK, uploads it as a build artifact, and — when a `v*` tag is pushed — publishes a GitHub
+Release with the APK and its `.sha256` checksum attached. Add `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS` and
 `ANDROID_KEY_PASSWORD` as repository secrets for signed CI builds (otherwise CI produces a
 debug-signed APK).
 
@@ -292,10 +301,14 @@ The game reads [`www/version.json`](www/version.json) about 1.5 s after boot, co
 with `APP_VERSION` in `www/js/config.js` and, only if the manifest is newer, shows a
 non-blocking card on the title screen with a **Download update** button. Publish a release by:
 
-1. Bumping `APP_VERSION` (`www/js/config.js`), `version` (`package.json`),
-   `versionCode`/`versionName` (`android/app/build.gradle`) and `www/version.json` —
-   `version` plus the `downloadUrl` of the new APK.
-2. Building and committing the APK to `releases/`, then pushing to `main`.
+1. `node tools/bump-version.mjs 1.2.1 --notes "Short release note"` — it updates
+   `www/version.json` (version, `versionCode`, date, `downloadUrl`), `APP_VERSION` in
+   `www/js/config.js`, `package.json` and `versionCode`/`versionName` in
+   `android/app/build.gradle`, then re-reads all four to prove they match.
+2. `bash scripts/build-apk.sh release` — it refuses to package a version that disagrees
+   with `www/version.json`, copies the APK to `releases/` and writes the `.sha256` sidecar.
+3. Update `CHANGELOG.md` and the checksum in this README, commit, push to `main`, then tag:
+   `git tag v1.2.1 && git push origin v1.2.1`.
 
 Offline, DNS, CORS, timeout and malformed-JSON failures are caught and the check simply
 stays quiet — it can never block or crash the game. Point it at another manifest for
@@ -306,7 +319,8 @@ button opens the system browser through `@capacitor/browser`.
 
 ## Performance notes
 
-- Fixed 960×540 virtual view, DPR capped at 2, `alpha: false` + `desynchronized` canvas.
+- 540-unit-tall virtual view whose width follows the screen aspect, DPR capped at 2,
+  `alpha: false` + `desynchronized` canvas.
 - Gradients cached and reused; particles capped at 320; entities culled outside the camera.
 - Chunks are dropped behind the camera; physics substeps only when a frame would move the cat
   more than ~18 px.

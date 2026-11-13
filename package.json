@@ -1,6 +1,6 @@
 {
   "name": "urban-stray",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "private": true,
   "description": "Urban Stray: قط المدينة — a 2D side-scrolling stray-cat survival game for Android.",
   "type": "module",

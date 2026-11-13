@@ -3,6 +3,47 @@
 All notable changes to Urban Stray are documented here.
 This project follows [Semantic Versioning](https://semver.org/).
 
+## [1.2.1] — 2026-11-13
+
+Security, stability and polish. No gameplay or balance changes.
+
+### Security
+- **Update check can no longer be poisoned.** The manifest is untrusted input: the
+  version must be plain numeric semver and strictly newer than the build, and the
+  download URL must be `https://github.com/hamouda0024/paws-in-the-city/...`.
+  Malformed, downgrade, foreign-host and plain-HTTP manifests are ignored silently.
+  The debug URL override now only works on localhost or with an explicit debug flag.
+- **Android hardening:** `allowBackup="false"` (saves never leave the device) and
+  `usesCleartextTraffic="false"`. Permissions remain `INTERNET` + `VIBRATE` only.
+- **Release integrity:** every APK now ships a `.sha256` sidecar that the GitHub
+  Release attaches, `scripts/build-apk.sh` refuses to package a version that disagrees
+  with `www/version.json`, and the README documents how to verify a download.
+- **Secret hygiene:** `.gitignore` covers keystores, `*.p12`, `*.pem`, `*.key`,
+  `google-services.json` and `.env*`, and the full git history was audited (no key
+  material; the only `storePassword=` lines are variable references).
+- **Supply chain:** Dependabot watches npm, Gradle and GitHub Actions; `npm audit` is
+  clean; `SECURITY.md` documents the trust model and private reporting.
+
+### Added
+- **Touch pause button** under the clock, and every on-screen pad now respects the
+  device safe-area insets.
+- **Lighting quality (High / Low).** Low skips the lamp glow, cat light pool and
+  gradient grading and reuses cached vignettes. If frames stay above ~20 ms for five
+  seconds the game drops to Low once per session, says so, and remembers the choice.
+- **English / العربية interface.** Auto follows the device language; Arabic is shaped
+  and mirrored on the canvas (menus, help, settings, pause, game over, HUD labels,
+  toasts) with `dir=rtl` kept in sync around the canvas.
+- **`tools/bump-version.mjs`** updates `version.json`, `APP_VERSION`, `package.json`,
+  `versionCode`/`versionName` and the release URL in one step, and refuses to run when
+  they already disagree.
+- **Unit tests** for `survival.js` and `rng.js` (31 cases) run in CI before the APK is
+  assembled.
+
+### Changed
+- Saves go through `core/storage.js`: reads never throw, corrupt JSON is dropped, and
+  settings/records are validated, so tampered or half-written data cannot put `NaN` on
+  the HUD. Storage failures fall back to memory instead of breaking the run.
+
 ## [1.2.0] — 2026-11-12
 
 ### Fixed
