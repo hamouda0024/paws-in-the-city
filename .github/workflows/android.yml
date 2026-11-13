@@ -118,7 +118,7 @@ jobs:
       # which is what the README download button points at.
       - name: Publish release
         if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: dist/urban-stray.apk
           generate_release_notes: true
