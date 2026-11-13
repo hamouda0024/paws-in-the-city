@@ -76,11 +76,31 @@ mkdir -p "$ROOT/dist"
 cp "$SRC" "$OUT"
 
 echo "==> Verifying APK"
-"$ANDROID_HOME/build-tools/36.0.0/aapt2" dump badging "$OUT" 2>/dev/null \
-  | grep -E "^(package|application-label|sdkVersion|targetSdkVersion|launchable-activity)" || true
+BADGING="$("$ANDROID_HOME/build-tools/36.0.0/aapt2" dump badging "$OUT" 2>/dev/null || true)"
+echo "$BADGING" | grep -E "^(package|application-label|sdkVersion|targetSdkVersion|launchable-activity)" || true
 "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --print-certs "$OUT" >/dev/null 2>&1 \
   && echo "    signature: valid" || echo "    signature: unverified (debug builds use the debug key)"
 
+# The APK must carry the version the game and the manifest claim.
+VERSION="$(python3 -c "import json;print(json.load(open('$ROOT/www/version.json'))['version'])")"
+APK_VERSION="$(echo "$BADGING" | sed -n "s/.*versionName='\([^']*\)'.*/\1/p" | head -1)"
+if [ "$APK_VERSION" != "$VERSION" ]; then
+  echo "!! APK versionName '$APK_VERSION' != www/version.json '$VERSION' — run tools/bump-version.mjs" >&2
+  exit 1
+fi
+
 echo
 echo "APK ready: $OUT ($(du -h "$OUT" | cut -f1))"
+
+# A signed release is published from releases/, so ship it with a checksum
+# next to it: dist/ is gitignored, releases/ is what users download.
+if [ "$MODE" = "release" ]; then
+  mkdir -p "$ROOT/releases"
+  RELEASE_APK="$ROOT/releases/urban-stray-v$VERSION.apk"
+  cp "$OUT" "$RELEASE_APK"
+  ( cd "$ROOT/releases" && sha256sum "urban-stray-v$VERSION.apk" > "urban-stray-v$VERSION.apk.sha256" )
+  echo "Release artifact: $RELEASE_APK ($(du -h "$RELEASE_APK" | cut -f1))"
+  echo "Checksum: $(cat "$RELEASE_APK.sha256")"
+fi
+
 echo "Install with: adb install -r \"$OUT\""

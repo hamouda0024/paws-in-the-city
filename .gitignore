@@ -4,10 +4,11 @@ dist/
 artifacts/
 *.log
 
-# Build output (releases/*.apk is the committed, shareable build)
+# Build output (releases/*.apk + .sha256 are the committed, shareable build)
 *.apk
 *.aab
 !releases/*.apk
+!releases/*.apk.sha256
 
 # Android build artifacts
 android/.gradle/

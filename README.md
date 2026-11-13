@@ -46,6 +46,19 @@ Signed release build · Android 7.0+ (API 24) · landscape · works offline, no 
 adb install -r releases/urban-stray-v1.2.0.apk
 ```
 
+**Verify your download**
+
+Every release ships with a SHA-256 checksum (`releases/urban-stray-v<version>.apk.sha256`,
+also attached to the GitHub Release). After downloading:
+
+```bash
+sha256sum urban-stray-v1.2.0.apk
+# 51397460aade7a303dfdba4f90791afee38fc7f75a3012868aecaeefddecf367
+```
+
+The hash must match the `.sha256` file for the same version. A mismatch means the
+download was altered or truncated — discard it and download again.
+
 > Every tagged version (`v1.0.1`, `v1.1.0`, …) is built and attached automatically by
 > [GitHub Actions](.github/workflows/android.yml) and shows up under
 > [**Releases**](https://github.com/hamouda0024/paws-in-the-city/releases). The APK committed in `releases/` is the current signed build.
