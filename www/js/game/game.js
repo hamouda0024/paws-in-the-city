@@ -8,6 +8,7 @@ import {
 } from '../config.js';
 import { UpdateChecker } from '../core/updates.js';
 import { clamp, damp, lerp, randRange } from '../core/rng.js';
+import { setLang, t } from '../core/i18n.js';
 import { fillRound, roundRect, text } from '../core/draw.js';
 import { World } from './world.js';
 import { Cat } from './cat.js';
@@ -125,7 +126,18 @@ export class Game {
   toggleLighting() {
     this.settings.lighting = this.settings.lighting === 'low' ? 'high' : 'low';
     this.saveSettings();
-    this.hud.toast(this.settings.lighting === 'low' ? 'Lighting: Low (smoother)' : 'Lighting: High (full night glow)');
+    this.hud.toast(this.settings.lighting === 'low' ? t('toast.lightingLow') : t('toast.lightingHigh'));
+  }
+
+  /** Cycles auto → English → العربية, applying it immediately (persisted). */
+  cycleLanguage() {
+    const order = ['auto', 'en', 'ar'];
+    const index = order.indexOf(this.settings.language || 'auto');
+    this.settings.language = order[(index + 1) % order.length];
+    setLang(this.settings.language);
+    window.dispatchEvent(new CustomEvent('urbanstray:language'));
+    this.saveSettings();
+    this.hud.toast(t('toast.language'));
   }
 
   cycleTouch() {
@@ -195,7 +207,7 @@ export class Game {
     this.screens.enter('playing');
     this.audio.unlock();
     this.audio.playMeow({ pitch: 1.05 });
-    this.hud.toast('Find food, stay off the road', 'info');
+    this.hud.toast(t('toast.findFood'), 'info');
     this.updateTouchMode();
   }
 
@@ -271,7 +283,7 @@ export class Game {
       if (wantsUp) {
         cat.wake();
         survival.wake();
-        this.hud.toast('You wake up, a little warmer', 'good');
+        this.hud.toast(t('toast.woke'), 'good');
         this.audio.playMeow({ pitch: 0.95 });
       }
     }
@@ -366,7 +378,7 @@ export class Game {
       this.settings.lighting = 'low';
       this.lightingAutoDropped = true;
       this.saveSettings();
-      this.hud.toast('Slow device — lighting set to Low. Change it in Settings', 'info');
+      this.hud.toast(t('toast.slowDevice'), 'info');
     }
   }
 
@@ -379,15 +391,15 @@ export class Game {
 
   handleSurvivalEvent(e) {
     if (e.type === 'newday') {
-      this.hud.toast(`Day ${this.survival.day} begins`, 'good');
+      this.hud.toast(t('toast.dayBegins', { n: this.survival.day }), 'good');
       this.audio.playMotif(0.7);
     } else if (e.type === 'nightfall') {
-      this.hud.toast('Night falls — the rooftops are safer', 'info');
+      this.hud.toast(t('toast.night'), 'info');
     } else if (e.type === 'dawn') {
       this.audio.playMeow({ pitch: 1.15 });
     } else if (e.type === 'starving') {
       if (!this.starveWarned) {
-        this.hud.toast('You are starving. Eat something!', 'bad');
+        this.hud.toast(t('toast.starving'), 'bad');
         this.starveWarned = true;
       }
     } else if (e.type === 'death') {
@@ -479,20 +491,20 @@ export class Game {
       this.eatingTimer = 1.2;
       this.audio.playEat();
       this.particles.crumbs(cx, topY - 10, 8);
-      this.hud.toast(`Found ${res.label.toLowerCase()} +${res.absorbed} hunger`, 'good');
+      this.hud.toast(t('toast.found', { label: res.label.toLowerCase(), amount: res.absorbed }), 'good');
       this.hud.floater(`+${res.absorbed}`, cx, topY - 30, 'good');
     } else if (roll < 0.68) {
       this.world.spawn(new Food(cx, topY, 'milk'));
       this.audio.playPickup();
       this.particles.sparkle(cx, topY - 14, 8);
-      this.hud.toast('A whole milk carton!', 'good');
+      this.hud.toast(t('toast.milk'), 'good');
     } else if (roll < 0.82) {
-      this.hud.toast('Just soggy cardboard…', 'info');
+      this.hud.toast(t('toast.cardboard'), 'info');
       this.audio.playRummage();
     } else {
       // A rat bolts out — free dinner if you can catch it.
       this.world.spawn(new (this.world.entities.find((e) => e.kind === 'mouse')?.constructor || Food)(cx, topY, 'mouse'));
-      this.hud.toast('Something is moving in there!', 'info');
+      this.hud.toast(t('toast.moving'), 'info');
       this.audio.playBark(0, 1);
     }
 
@@ -502,7 +514,7 @@ export class Game {
         e.state = 'chase';
         e.alert = 1;
         e.loseTimer = 3.5;
-        this.hud.toast('A dog heard that', 'bad');
+        this.hud.toast(t('toast.dogHeard'), 'bad');
         break;
       }
     }
@@ -511,7 +523,7 @@ export class Game {
   completeSleep(spot) {
     this.cat.startSleep();
     this.audio.playSleep();
-    this.hud.toast(spot.type === 'vent' ? 'Warm air from the vent…' : 'Curled up in the box', 'good');
+    this.hud.toast(spot.type === 'vent' ? t('toast.vent') : t('toast.box'), 'good');
     this.haptic(20);
   }
 
@@ -526,7 +538,7 @@ export class Game {
           this.audio.playPickup();
           this.particles.sparkle(e.cx, e.cy, 16, '#ffe08a');
           this.hud.floater('GOLDEN FISH', e.cx, e.cy - 16, 'good');
-          this.hud.toast(`Golden fish ${this.quests.goldFish}/${QUEST.goldFishToUnlock}`, 'good');
+          this.hud.toast(t('toast.goldFish', { got: this.quests.goldFish, total: QUEST.goldFishToUnlock }), 'good');
           this.addShake(3, 0.18);
         }
         continue;
@@ -540,7 +552,7 @@ export class Game {
         this.particles.crumbs(e.cx, e.cy, 9);
         this.particles.sparkle(e.cx, e.cy - 6, 5);
         this.hud.floater(`+${res.absorbed}`, e.cx, e.cy - 18, 'good');
-        this.hud.toast(`Ate ${res.label.toLowerCase()} (+${res.absorbed})`, 'good');
+        this.hud.toast(t('toast.ate', { label: res.label.toLowerCase(), amount: res.absorbed }), 'good');
       }
     }
   }
@@ -555,7 +567,7 @@ export class Game {
     if (this.toxinSound <= 0) {
       this.toxinSound = 0.7;
       this.audio.playHurt();
-      this.hud.toast('Toxic runoff — get out of it!', 'bad');
+      this.hud.toast(t('toast.toxic'), 'bad');
       this.haptic(15);
     }
     if (Math.random() < dt * 12) {
@@ -606,7 +618,7 @@ export class Game {
     this.audio.playEat();
     this.particles.crumbs(mouse.cx, mouse.cy, 7);
     this.hud.floater(`+${res.absorbed}`, mouse.cx, mouse.cy - 16, 'good');
-    this.hud.toast('Caught a mouse!', 'good');
+    this.hud.toast(t('toast.mouse'), 'good');
   }
 
   onHumanFeed(human) {
@@ -615,7 +627,7 @@ export class Game {
     this.world.entities.push(f);
     this.audio.playMeow({ pitch: 1.2 });
     this.particles.hearts(human.cx, human.y - 6);
-    this.hud.toast('A kind stranger left you a sandwich', 'good');
+    this.hud.toast(t('toast.sandwich'), 'good');
   }
 
   onDeath(cause) {

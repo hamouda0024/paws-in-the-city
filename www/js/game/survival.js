@@ -4,6 +4,7 @@
  */
 import { SURVIVAL, PHYS, DAY_LENGTH, FOOD_VALUE } from '../config.js';
 import { clamp, lerp } from '../core/rng.js';
+import { t } from '../core/i18n.js';
 
 export const FOOD_TYPES = {
   fishBones: { label: 'Fish bones', value: FOOD_VALUE.fishBones, color: '#cfd8e6' },
@@ -174,11 +175,11 @@ export function clockLabel(dayTime) {
 }
 
 export function timePhaseLabel(survival) {
-  const t = survival.timeOfDay;
-  if (t < 0.22) return 'Deep night';
-  if (t < 0.32) return 'Dawn';
-  if (t < 0.5) return 'Morning';
-  if (t < 0.68) return 'Afternoon';
-  if (t < 0.78) return 'Dusk';
-  return 'Night';
+  const phase = survival.timeOfDay;
+  if (phase < 0.22) return t('phase.deepNight');
+  if (phase < 0.32) return t('phase.dawn');
+  if (phase < 0.5) return t('phase.morning');
+  if (phase < 0.68) return t('phase.afternoon');
+  if (phase < 0.78) return t('phase.dusk');
+  return t('phase.night');
 }

@@ -1,6 +1,11 @@
 /** Canvas drawing helpers: rounded shapes, soft glows and text with the game's type style. */
 
+import { dir, isRTL } from './i18n.js';
+
 const glowCache = new Map();
+
+/** Latin UI stack plus Arabic faces; harmless fallbacks for English text. */
+export const UI_FAMILY = 'ui-rounded, "Trebuchet MS", "Segoe UI", "Noto Naskh Arabic", "Geeza Pro", system-ui, sans-serif';
 
 export function roundRect(ctx, x, y, w, h, r) {
   const rr = Math.min(r, Math.abs(w) / 2, Math.abs(h) / 2);
@@ -42,15 +47,21 @@ export function text(ctx, str, x, y, {
   color = '#eaf2ff',
   align = 'left',
   baseline = 'alphabetic',
-  family = 'ui-rounded, "Trebuchet MS", "Segoe UI", system-ui, sans-serif',
+  family = UI_FAMILY,
   shadow = 0,
-  letterSpacing = 0
+  letterSpacing = 0,
+  direction = null
 } = {}) {
+  // Shape Arabic right-to-left; letter-spacing would break the joins.
+  // Latin-only strings (numbers, key names, copyright) can force direction: 'ltr'
+  // so bidi cannot reorder them inside an Arabic layout.
+  const rtl = isRTL();
+  ctx.direction = direction || dir();
   ctx.font = `${weight} ${size}px ${family}`;
   ctx.fillStyle = color;
   ctx.textAlign = align;
   ctx.textBaseline = baseline;
-  if (letterSpacing && 'letterSpacing' in ctx) ctx.letterSpacing = `${letterSpacing}px`;
+  if (letterSpacing && !rtl && 'letterSpacing' in ctx) ctx.letterSpacing = `${letterSpacing}px`;
   if (shadow > 0) {
     ctx.save();
     ctx.shadowColor = 'rgba(0,0,0,0.55)';
@@ -65,7 +76,7 @@ export function text(ctx, str, x, y, {
 }
 
 export function measure(ctx, str, size, weight = 600) {
-  ctx.font = `${weight} ${size}px ui-rounded, "Trebuchet MS", "Segoe UI", system-ui, sans-serif`;
+  ctx.font = `${weight} ${size}px ${UI_FAMILY}`;
   return ctx.measureText(str).width;
 }
 

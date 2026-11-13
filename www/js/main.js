@@ -6,13 +6,19 @@ import { VIEW_W, VIEW_H, SETTINGS_KEY, setViewport } from './config.js';
 import { Input } from './core/input.js';
 import { AudioEngine } from './core/audio.js';
 import { Game } from './game/game.js';
+import { setLang, lang, isRTL } from './core/i18n.js';
+
+function applyDocumentLanguage() {
+  document.documentElement.lang = lang();
+  document.documentElement.dir = isRTL() ? 'rtl' : 'ltr';
+}
 
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d', { alpha: false, desynchronized: true });
 ctx.imageSmoothingEnabled = true;
 
 function loadSettings() {
-  const defaults = { sound: true, haptics: true, touch: 'auto', lighting: 'high' };
+  const defaults = { sound: true, haptics: true, touch: 'auto', lighting: 'high', language: 'auto' };
   try {
     const raw = localStorage.getItem(SETTINGS_KEY);
     if (!raw) return defaults;
@@ -20,7 +26,14 @@ function loadSettings() {
   } catch { return defaults; }
 }
 
+window.addEventListener('urbanstray:language', applyDocumentLanguage);
+
 const settings = loadSettings();
+
+// 'auto' follows the device language; the canvas text direction follows it too.
+setLang(settings.language);
+applyDocumentLanguage();
+
 const audio = new AudioEngine(settings);
 
 // Shared view transform, used by both the renderer and pointer mapping.

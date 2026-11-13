@@ -8,6 +8,7 @@ const QUEST_ENOUGH = QUEST_CFG.goldFishToUnlock;
 import { clamp, lerp, rgba } from '../core/rng.js';
 import { roundRect, fillRound, text, ellipse } from '../core/draw.js';
 import { clockLabel, timePhaseLabel } from './survival.js';
+import { t, isRTL, alignFor } from '../core/i18n.js';
 
 export class HUD {
   constructor(game) {
@@ -80,8 +81,8 @@ export class HUD {
       const a = 0.28 + Math.sin(this.promptPulse * 1.6) * 0.03;
       ctx.fillStyle = `rgba(6, 10, 24, ${a})`;
       ctx.fillRect(0, 0, VIEW_W, VIEW_H);
-      text(ctx, 'Sleeping…', VIEW_W / 2, 92, { size: 20, weight: 700, align: 'center', color: 'rgba(200, 220, 255, 0.85)', letterSpacing: 2 });
-      text(ctx, 'Tap jump to wake', VIEW_W / 2, 116, { size: 12, align: 'center', color: 'rgba(160, 185, 220, 0.7)' });
+      text(ctx, t('hud.sleeping'), VIEW_W / 2, 92, { size: 20, weight: 700, align: 'center', color: 'rgba(200, 220, 255, 0.85)', letterSpacing: 2 });
+      text(ctx, t('hud.wake'), VIEW_W / 2, 116, { size: 12, align: 'center', color: 'rgba(160, 185, 220, 0.7)' });
       ctx.restore();
     }
   }
@@ -128,7 +129,9 @@ export class HUD {
     iconFn(ctx, color);
     ctx.restore();
 
-    text(ctx, label, x + 2, y + h + 11, { size: 9, weight: 700, color: 'rgba(180, 200, 225, 0.65)', letterSpacing: 1.4 });
+    text(ctx, label, isRTL() ? x + w : x + 2, y + h + 11, {
+      size: 9, weight: 700, align: alignFor('left'), color: 'rgba(180, 200, 225, 0.65)', letterSpacing: 1.4
+    });
   }
 
   drawBars(ctx, game) {
@@ -144,7 +147,7 @@ export class HUD {
     fillRound(ctx, 10, 10, 232, 100, 14, 'rgba(8, 13, 24, 0.42)');
 
     const low = s.hunger < 20 ? 0.55 + Math.sin(this.promptPulse * 8) * 0.45 : 1;
-    this.bar(ctx, x, y, w, h, s.health, this.ghost.health, '#ff5d6c', 'HEALTH', (c, col) => {
+    this.bar(ctx, x, y, w, h, s.health, this.ghost.health, '#ff5d6c', t('hud.health'), (c, col) => {
       // Heart.
       c.beginPath();
       c.moveTo(0, 4);
@@ -154,7 +157,7 @@ export class HUD {
       c.fill();
     });
     y += gap;
-    this.bar(ctx, x, y, w, h, s.hunger, this.ghost.hunger, '#ffb454', 'HUNGER', (c, col) => {
+    this.bar(ctx, x, y, w, h, s.hunger, this.ghost.hunger, '#ffb454', t('hud.hunger'), (c, col) => {
       // Fish.
       c.beginPath();
       c.ellipse(-1, 0, 5.5, 3.4, 0, 0, Math.PI * 2);
@@ -177,7 +180,7 @@ export class HUD {
       ctx.globalAlpha = 1;
     }
     y += gap;
-    this.bar(ctx, x, y, w, h, s.energy, this.ghost.energy, '#5cc9ff', 'ENERGY', (c, col) => {
+    this.bar(ctx, x, y, w, h, s.energy, this.ghost.energy, '#5cc9ff', t('hud.energy'), (c, col) => {
       // Lightning.
       c.beginPath();
       c.moveTo(0.5, -6);
@@ -201,7 +204,7 @@ export class HUD {
     ctx.save();
     fillRound(ctx, x - 176, 10, 176, 54, 14, 'rgba(8, 13, 24, 0.42)');
 
-    text(ctx, `DAY ${s.day}`, x - 160, y + 12, { size: 16, weight: 800, color: '#fff2dc', letterSpacing: 1.5 });
+    text(ctx, t('hud.day', { n: s.day }), x - 160, y + 12, { size: 16, weight: 800, color: '#fff2dc', letterSpacing: 1.5 });
     text(ctx, timePhaseLabel(s), x - 160, y + 29, { size: 10, weight: 600, color: 'rgba(180, 200, 225, 0.75)', letterSpacing: 1 });
 
     // Weather chip.
@@ -218,7 +221,7 @@ export class HUD {
         ctx.lineTo(chipX + 7 + i * 8, y + 11);
         ctx.stroke();
       }
-      text(ctx, 'Rain', chipX + 30, y + 12, { size: 9, weight: 700, color: '#a9d8ff' });
+      text(ctx, t('hud.rain'), chipX + 30, y + 12, { size: 9, weight: 700, color: '#a9d8ff' });
     } else if (s.darkness > 0.5) {
       ctx.fillStyle = '#dbe7ff';
       ctx.beginPath();
@@ -228,7 +231,7 @@ export class HUD {
       ctx.beginPath();
       ctx.arc(chipX + 15, y + 4, 4.4, 0, Math.PI * 2);
       ctx.fill();
-      text(ctx, 'Clear', chipX + 22, y + 12, { size: 9, weight: 700, color: '#c9d8ef' });
+      text(ctx, t('hud.clear'), chipX + 22, y + 12, { size: 9, weight: 700, color: '#c9d8ef' });
     } else {
       ctx.fillStyle = '#ffd479';
       ctx.beginPath();
@@ -243,11 +246,11 @@ export class HUD {
         ctx.lineTo(chipX + 12 + Math.cos(a) * 8.6, y + 6 + Math.sin(a) * 8.6);
         ctx.stroke();
       }
-      text(ctx, 'Clear', chipX + 22, y + 12, { size: 9, weight: 700, color: '#ffe9b3' });
+      text(ctx, t('hud.clear'), chipX + 22, y + 12, { size: 9, weight: 700, color: '#ffe9b3' });
     }
 
-    text(ctx, clockLabel(s.timeOfDay), x - 4, y + 33, { size: 24, weight: 800, align: 'right', color: '#ffffff', shadow: 4 });
-    text(ctx, `${Math.round(s.distance)} m`, x - 4, y + 49, { size: 10, weight: 700, align: 'right', color: 'rgba(180, 205, 235, 0.7)', letterSpacing: 1 });
+    text(ctx, clockLabel(s.timeOfDay), x - 4, y + 33, { size: 24, weight: 800, align: 'right', direction: 'ltr', color: '#ffffff', shadow: 4 });
+    text(ctx, `${Math.round(s.distance)} m`, x - 4, y + 49, { size: 10, weight: 700, align: 'right', direction: 'ltr', color: 'rgba(180, 205, 235, 0.7)', letterSpacing: 1 });
 
     // Day clock arc.
     const cx = x - 160;
@@ -532,7 +535,7 @@ export class HUD {
     ctx.lineWidth = 1.2;
     ctx.stroke();
 
-    text(ctx, 'QUEST', x + 12, y + 15, { size: 8, weight: 800, color: 'rgba(255, 200, 140, 0.85)', letterSpacing: 1.6 });
+    text(ctx, t('hud.quest'), x + 12, y + 15, { size: 8, weight: 800, color: 'rgba(255, 200, 140, 0.85)', letterSpacing: 1.6 });
     const label = q ? q.label : quests.banner;
     text(ctx, label, x + 12, y + 30, { size: 11.5, weight: 700, color: '#fff2df' });
 

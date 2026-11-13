@@ -136,8 +136,21 @@ by impact, a spring-driven tail, ear flicks, slow blinks, idle sitting and purri
 | Rummage / sleep / meow | hold `E` / `F` / `J` | paw pad |
 | Pause | `Esc` / `P` | ❚❚ button, top-right under the clock |
 
-Menus work with arrows + `Enter`, or by tapping. Settings (sound, haptics, touch controls, lighting quality) and
+Menus work with arrows + `Enter`, or by tapping. Settings (sound, haptics, touch controls, lighting quality, language) and
 the best-run record persist in `localStorage`.
+
+### Language
+
+Settings → **Language** cycles *Auto → English → العربية*. Auto follows the device locale
+(`navigator.language`), so an Arabic phone starts in Arabic. The choice is saved.
+
+Arabic is rendered as real RTL on the canvas: `ctx.direction` is set per draw call so the
+browser shapes and orders Arabic text, the menus mirror (labels right, values and chevron left,
+selection bar on the right), the title layout moves the wordmark up and the menu underneath it,
+the help/stat rows swap columns, and `document.documentElement.dir` is kept in sync for the
+page around the canvas. Latin-only strings (the wordmark, copyright, clock and distance) force
+`direction: 'ltr'` so bidi cannot reorder them. Strings live in `www/js/core/i18n.js`; there
+are no runtime dependencies or external font files — Arabic uses the platform font stack.
 
 ---
 

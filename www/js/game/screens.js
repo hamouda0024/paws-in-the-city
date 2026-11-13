@@ -9,13 +9,14 @@ import {
 import { clamp, mixHex, rgba } from '../core/rng.js';
 import { roundRect, fillRound, text, ellipse } from '../core/draw.js';
 import { formatTime } from './survival.js';
+import { t, days, isRTL, alignFor, chevron, normalizeLang } from '../core/i18n.js';
 
-const DEATH_LINES = {
-  starvation: ['The hunger won.', 'Three days is a long time for a stray.'],
-  'a stray dog': ['The dog was faster tonight.', 'Territory is everything in this city.'],
-  'a bad fall': ['The rooftops were not forgiving.', 'Nine lives, but not nine landings.'],
-  traffic: ['The street never stops.', 'The city does not brake for strays.'],
-  'the city': ['The city took another one.', 'It happens every night.']
+const DEATH_KEYS = {
+  starvation: 'over.death.starvation',
+  'a stray dog': 'over.death.dog',
+  'a bad fall': 'over.death.fall',
+  traffic: 'over.death.traffic',
+  'the city': 'over.death.city'
 };
 
 export class Screens {
@@ -119,26 +120,34 @@ export class Screens {
       ctx.lineWidth = selected ? 1.6 : 1;
       ctx.stroke();
 
-      // Accent bar on the selected row.
+      // Rows mirror with the language: label, value and chevron swap sides.
+      const rtl = isRTL();
+      const labelX = rtl ? px + w - 24 : px + 24;
+      const labelAlign = rtl ? 'right' : 'left';
+      const valueX = rtl ? px + 44 : px + w - 44;
+      const valueAlign = rtl ? 'left' : 'right';
+      const markX = rtl ? px + 20 : px + w - 20;
+
+      // Accent bar on the selected row (leads the reading direction).
       if (selected && !disabled) {
-        fillRound(ctx, px + 8, py + itemH / 2 - 9, 3, 18, 2, COLORS.accent);
+        fillRound(ctx, rtl ? px + w - 11 : px + 8, py + itemH / 2 - 9, 3, 18, 2, COLORS.accent);
       }
 
-      text(ctx, it.label, px + 24, py + (it.sub ? itemH / 2 - 1 : itemH / 2 + 5), {
-        size: 16, weight: 700,
+      text(ctx, it.label, labelX, py + (it.sub ? itemH / 2 - 1 : itemH / 2 + 5), {
+        size: 16, weight: 700, align: labelAlign,
         color: disabled ? 'rgba(160, 175, 195, 0.4)' : selected ? '#fff6e8' : '#dbe6f6'
       });
       if (it.sub) {
-        text(ctx, it.sub, px + 24, py + itemH / 2 + 15, { size: 10, weight: 500, color: 'rgba(170, 190, 215, 0.65)' });
+        text(ctx, it.sub, labelX, py + itemH / 2 + 15, { size: 10, weight: 500, align: labelAlign, color: 'rgba(170, 190, 215, 0.65)' });
       }
       if (it.value) {
-        text(ctx, it.value, px + w - 20, py + itemH / 2 + 5, {
-          size: 13, weight: 700, align: 'right',
+        text(ctx, it.value, valueX, py + itemH / 2 + 5, {
+          size: 13, weight: 700, align: valueAlign,
           color: it.valueOn ? COLORS.good : 'rgba(180, 200, 225, 0.7)'
         });
       }
       if (selected && !disabled) {
-        text(ctx, '›', px + w - 20, py + itemH / 2 + 6, { size: 18, weight: 800, align: 'right', color: 'rgba(255, 200, 140, 0.9)' });
+        text(ctx, chevron(), markX, py + itemH / 2 + 6, { size: 18, weight: 800, align: valueAlign, color: 'rgba(255, 200, 140, 0.9)' });
       }
       ctx.restore();
 
@@ -213,11 +222,14 @@ export class Screens {
 
     // Title lockup.
     ctx.save();
-    ctx.translate(64, 132);
+    ctx.translate(64, isRTL() ? 104 : 132);
     const grad = ctx.createLinearGradient(0, -46, 0, 46);
     grad.addColorStop(0, '#fff0d2');
     grad.addColorStop(0.55, '#ffb454');
     grad.addColorStop(1, '#e0723a');
+    // The wordmark is Latin art: never let an RTL context shift it.
+    ctx.direction = 'ltr';
+    ctx.textAlign = 'left';
     ctx.font = '800 62px ui-rounded, "Trebuchet MS", "Segoe UI", sans-serif';
     if ('letterSpacing' in ctx) ctx.letterSpacing = '4px';
     ctx.shadowColor = 'rgba(255, 140, 60, 0.45)';
@@ -229,30 +241,45 @@ export class Screens {
     if ('letterSpacing' in ctx) ctx.letterSpacing = '0px';
     ctx.restore();
 
-    text(ctx, 'قط المدينة', 68, 238, { size: 30, weight: 700, color: 'rgba(255, 214, 160, 0.92)' });
-    text(ctx, 'A stray cat survival story', 68, 264, { size: 12, weight: 600, color: 'rgba(180, 200, 225, 0.8)', letterSpacing: 2 });
+    // RTL: the text block hugs the right edge and the menu moves to the left.
+    const rtl = isRTL();
+    const textX = rtl ? VIEW_W - 68 : 68;
+    const textAlign = alignFor('left');
+    const menuX = rtl ? 64 : VIEW_W - 366;
+
+    text(ctx, 'قط المدينة', textX, 238, { size: 30, weight: 700, align: textAlign, color: 'rgba(255, 214, 160, 0.92)' });
+    text(ctx, t('title.tagline'), textX, 264, { size: 12, weight: 600, align: textAlign, color: 'rgba(180, 200, 225, 0.8)', letterSpacing: 2 });
 
     const best = game.records;
     if (best.bestDay > 0) {
+      const bx = rtl ? VIEW_W - 258 : 68;
       ctx.save();
-      fillRound(ctx, 68, 288, 190, 52, 12, 'rgba(10, 16, 28, 0.7)');
-      roundRect(ctx, 68, 288, 190, 52, 12);
+      fillRound(ctx, bx, 288, 190, 52, 12, 'rgba(10, 16, 28, 0.7)');
+      roundRect(ctx, bx, 288, 190, 52, 12);
       ctx.strokeStyle = 'rgba(255, 190, 110, 0.3)';
       ctx.lineWidth = 1;
       ctx.stroke();
-      text(ctx, 'BEST RUN', 82, 305, { size: 9, weight: 800, color: 'rgba(255, 200, 140, 0.8)', letterSpacing: 1.6 });
-      text(ctx, `${best.bestDay} day${best.bestDay === 1 ? '' : 's'} · ${best.bestFood} food`, 82, 326, { size: 13, weight: 700, color: '#fff1dd' });
+      const innerX = rtl ? bx + 176 : bx + 14;
+      text(ctx, t('title.best'), innerX, 305, { size: 9, weight: 800, align: textAlign, color: 'rgba(255, 200, 140, 0.8)', letterSpacing: 1.6 });
+      text(ctx, t('title.bestLine', { days: days(best.bestDay), food: best.bestFood }), innerX, 326, { size: 13, weight: 700, align: textAlign, color: '#fff1dd' });
       ctx.restore();
     }
 
     const items = [
-      { label: 'Start Game', sub: 'Survive as long as you can' },
-      { label: 'How to Play', sub: 'Controls & survival tips' },
-      { label: 'Settings', sub: 'Sound, haptics, controls' },
-      { label: 'About', sub: 'Credits & the story' },
-      { label: 'Exit', sub: 'Leave the city' }
+      { label: t('title.start'), sub: t('title.start.sub') },
+      { label: t('title.help'), sub: t('title.help.sub') },
+      { label: t('title.settings'), sub: t('title.settings.sub') },
+      { label: t('title.about'), sub: t('title.about.sub') },
+      { label: t('title.exit'), sub: t('title.exit.sub') }
     ];
-    const idx = this.menuBlock(ctx, items, { x: VIEW_W - 366, y: 148, w: 302, itemH: 50, gap: 9 });
+    // RTL: the wordmark stays on the left, so the menu sits below it.
+    const idx = this.menuBlock(ctx, items, {
+      x: menuX,
+      y: rtl ? 216 : 148,
+      w: 302,
+      itemH: rtl ? 44 : 50,
+      gap: rtl ? 8 : 9
+    });
     if (idx >= 0) {
       if (idx === 0) game.startRun();
       else if (idx === 1) game.go('help');
@@ -263,11 +290,11 @@ export class Screens {
 
     this.drawUpdateBanner(ctx);
 
-    text(ctx, `v${APP_VERSION} · Headphones recommended · Landscape`, 68, VIEW_H - 48, {
-      size: 10, weight: 600, color: 'rgba(160, 185, 215, 0.55)', letterSpacing: 1
+    text(ctx, `v${APP_VERSION} · ${t('title.footer')}`, textX, VIEW_H - 48, {
+      size: 10, weight: 600, align: textAlign, color: 'rgba(160, 185, 215, 0.55)', letterSpacing: 1
     });
-    text(ctx, COPYRIGHT, 68, VIEW_H - 29, {
-      size: 10, weight: 600, color: 'rgba(255, 208, 168, 0.52)'
+    text(ctx, COPYRIGHT, textX, VIEW_H - 29, {
+      size: 10, weight: 600, align: textAlign, direction: 'ltr', color: 'rgba(255, 208, 168, 0.52)'
     });
     this.drawToast(ctx);
   }
@@ -278,10 +305,13 @@ export class Screens {
     const updates = game.updates;
     if (!updates || !updates.shouldNotify) return;
 
-    const x = 64;
+    const rtl = isRTL();
+    const x = rtl ? VIEW_W - 412 : 64;
     const y = 344;
     const w = 348;
     const h = 96;
+    const textX = rtl ? x + w - 18 : x + 18;
+    const textAlign = alignFor('left');
 
     ctx.save();
     fillRound(ctx, x, y, w, h, 14, 'rgba(28, 21, 12, 0.94)');
@@ -290,25 +320,27 @@ export class Screens {
     ctx.lineWidth = 1.4;
     ctx.stroke();
 
-    text(ctx, 'UPDATE AVAILABLE', x + 18, y + 25, {
-      size: 9.5, weight: 800, color: '#ffcf94', letterSpacing: 1.8
+    text(ctx, t('title.update'), textX, y + 25, {
+      size: 9.5, weight: 800, align: textAlign, color: '#ffcf94', letterSpacing: 1.8
     });
-    text(ctx, `Version ${updates.latest} is ready`, x + 18, y + 45, {
-      size: 12, weight: 700, color: '#fff3e4'
+    text(ctx, t('title.updateReady', { version: updates.latest }), textX, y + 45, {
+      size: 12, weight: 700, align: textAlign, color: '#fff3e4'
     });
 
     const btnY = y + h - 40;
     const btnH = 28;
     const pressed = (id) => game.input.buttonHeld.get(id);
-    this.addButton('update-download', x + 16, btnY, 138, btnH);
-    this.addButton('update-later', x + 166, btnY, 84, btnH);
+    const laterX = rtl ? x + 16 : x + 166;
+    const downloadX = rtl ? x + 112 : x + 16;
+    this.addButton('update-download', downloadX, btnY, 138, btnH);
+    this.addButton('update-later', laterX, btnY, 84, btnH);
 
-    fillRound(ctx, x + 16, btnY, 138, btnH, 8, pressed('update-download') ? '#ffd9a2' : '#ffb454');
-    text(ctx, 'Download update', x + 85, btnY + 19, {
+    fillRound(ctx, downloadX, btnY, 138, btnH, 8, pressed('update-download') ? '#ffd9a2' : '#ffb454');
+    text(ctx, t('title.download'), downloadX + 69, btnY + 19, {
       size: 11, weight: 800, align: 'center', color: '#2a1a08'
     });
-    fillRound(ctx, x + 166, btnY, 84, btnH, 8, 'rgba(46, 52, 68, 0.95)');
-    text(ctx, 'Later', x + 208, btnY + 19, {
+    fillRound(ctx, laterX, btnY, 84, btnH, 8, 'rgba(46, 52, 68, 0.95)');
+    text(ctx, t('title.later'), laterX + 42, btnY + 19, {
       size: 11, weight: 700, align: 'center', color: '#d3dced'
     });
 
@@ -334,44 +366,53 @@ export class Screens {
     ctx.lineWidth = 1;
     ctx.stroke();
 
-    text(ctx, 'HOW TO PLAY', 82, 76, { size: 22, weight: 800, color: '#fff2dc', letterSpacing: 3 });
-    text(ctx, 'Everything you need to survive one more night.', 82, 98, { size: 11, weight: 500, color: 'rgba(175, 195, 220, 0.7)' });
+    const rtl = isRTL();
+    const headX = rtl ? VIEW_W - 82 : 82;
+    const headAlign = alignFor('left');
+
+    text(ctx, t('help.title'), headX, 76, { size: 22, weight: 800, align: headAlign, color: '#fff2dc', letterSpacing: 3 });
+    text(ctx, t('help.sub'), headX, 98, { size: 11, weight: 500, align: headAlign, color: 'rgba(175, 195, 220, 0.7)' });
 
     const rows = [
-      ['◀ ▶  /  A D', 'Move. Hold SHIFT or the >>> pad to sprint (burns energy).'],
-      ['SPACE  /  ↑', 'Jump. Hold longer to jump higher. Second tap = double jump.'],
-      ['E  /  PAW', 'Hold to rummage dumpsters or sleep in boxes. Appears in reach.'],
-      ['ESC  /  ❚❚', 'Pause the run.']
+      ['◀ ▶  /  A D', t('help.move')],
+      ['SPACE  /  ↑', t('help.jump')],
+      ['E  /  PAW', t('help.interact')],
+      ['ESC  /  ❚❚', t('help.pause')]
     ];
+    const chipX = rtl ? VIEW_W - 82 - 156 : 82;
+    const chipCenter = chipX + 78;
+    const descX = rtl ? VIEW_W - 252 : 252;
     let y = 126;
     for (const [key, desc] of rows) {
-      fillRound(ctx, 82, y - 15, 156, 24, 7, 'rgba(26, 36, 54, 0.95)');
-      text(ctx, key, 160, y + 1, { size: 10.5, weight: 800, align: 'center', color: '#ffd9a5', letterSpacing: 1 });
-      text(ctx, desc, 252, y + 1, { size: 11.5, weight: 500, color: 'rgba(220, 232, 248, 0.9)' });
+      fillRound(ctx, chipX, y - 15, 156, 24, 7, 'rgba(26, 36, 54, 0.95)');
+      text(ctx, key, chipCenter, y + 1, { size: 10.5, weight: 800, align: 'center', color: '#ffd9a5', letterSpacing: 1 });
+      text(ctx, desc, descX, y + 1, { size: 11.5, weight: 500, align: headAlign, color: 'rgba(220, 232, 248, 0.9)' });
       y += 36;
     }
 
     // Survival tips.
-    text(ctx, 'SURVIVING THE CITY', 82, y + 12, { size: 12, weight: 800, color: '#ffcf94', letterSpacing: 2 });
+    text(ctx, t('help.surviving'), headX, y + 12, { size: 12, weight: 800, align: headAlign, color: '#ffcf94', letterSpacing: 2 });
     const tips = [
-      ['Rooftops are safe', 'Dogs and cars stay on the street. Climb high to rest.'],
-      ['Quests pay in food', 'Shelter from storms, sneak past dogs, climb for golden fish.'],
-      ['Golden fish = power', `Collect ${QUEST.goldFishToUnlock} on high perches to learn the double jump.`],
-      ['Read the warnings', 'A horn means a car is coming — get off the asphalt.'],
-      ['Rain and night', 'Traffic speeds up and dogs get bolder after dark.']
+      [t('help.tip1'), t('help.tip1.sub')],
+      [t('help.tip2'), t('help.tip2.sub')],
+      [t('help.tip3'), t('help.tip3.sub', { n: QUEST.goldFishToUnlock })],
+      [t('help.tip4'), t('help.tip4.sub')],
+      [t('help.tip5'), t('help.tip5.sub')]
     ];
+    const bulletX = rtl ? VIEW_W - 88 : 88;
+    const tipX = rtl ? VIEW_W - 100 : 100;
     let ty = y + 32;
     for (const [title, desc] of tips) {
       ctx.fillStyle = 'rgba(255, 190, 110, 0.85)';
       ctx.beginPath();
-      ctx.arc(88, ty - 4, 2.6, 0, Math.PI * 2);
+      ctx.arc(bulletX, ty - 4, 2.6, 0, Math.PI * 2);
       ctx.fill();
-      text(ctx, title, 100, ty, { size: 11.5, weight: 700, color: '#eaf2ff' });
-      text(ctx, desc, 100, ty + 13, { size: 10, weight: 500, color: 'rgba(170, 190, 215, 0.75)' });
+      text(ctx, title, tipX, ty, { size: 11.5, weight: 700, align: headAlign, color: '#eaf2ff' });
+      text(ctx, desc, tipX, ty + 13, { size: 10, weight: 500, align: headAlign, color: 'rgba(170, 190, 215, 0.75)' });
       ty += 30;
     }
 
-    const idx = this.menuBlock(ctx, [{ label: 'Back' }], { x: VIEW_W / 2 - 90, y: VIEW_H - 78, w: 180, itemH: 42 });
+    const idx = this.menuBlock(ctx, [{ label: t('common.back') }], { x: VIEW_W / 2 - 90, y: VIEW_H - 78, w: 180, itemH: 42 });
     if (idx === 0) game.back();
     this.drawToast(ctx);
   }
@@ -388,39 +429,42 @@ export class Screens {
     ctx.lineWidth = 1;
     ctx.stroke();
 
-    text(ctx, 'SETTINGS', VIEW_W / 2, 88, { size: 22, weight: 800, align: 'center', color: '#fff2dc', letterSpacing: 3 });
+    text(ctx, t('settings.title'), VIEW_W / 2, 86, { size: 22, weight: 800, align: 'center', color: '#fff2dc', letterSpacing: 3 });
 
     const s = game.settings;
-    const touchLabel = s.touch === 'auto' ? 'Auto' : s.touch === 'on' ? 'Always' : 'Off';
+    const touchLabel = s.touch === 'auto' ? t('settings.touch.auto') : s.touch === 'on' ? t('settings.touch.always') : t('settings.touch.off');
     const updates = game.updates;
     const lightingLow = s.lighting === 'low';
+    const langName = normalizeLang(s.language) === 'ar' ? 'العربية' : 'English';
     const items = [
-      { label: 'Sound', sub: 'Ambience, meows and traffic', value: s.sound ? 'ON' : 'OFF', valueOn: s.sound },
-      { label: 'Haptics', sub: 'Vibrate on impacts', value: s.haptics ? 'ON' : 'OFF', valueOn: s.haptics },
-      { label: 'Touch controls', sub: 'On-screen pads', value: touchLabel, valueOn: s.touch !== 'off' },
-      { label: 'Lighting', sub: lightingLow ? 'Low — no night glow passes' : 'High — full night lighting', value: lightingLow ? 'LOW' : 'HIGH' },
+      { label: t('settings.sound'), sub: t('settings.sound.sub'), value: s.sound ? t('common.on') : t('common.off'), valueOn: s.sound },
+      { label: t('settings.haptics'), sub: t('settings.haptics.sub'), value: s.haptics ? t('common.on') : t('common.off'), valueOn: s.haptics },
+      { label: t('settings.touch'), sub: t('settings.touch.sub'), value: touchLabel, valueOn: s.touch !== 'off' },
+      { label: t('settings.lighting'), sub: lightingLow ? t('settings.lighting.low') : t('settings.lighting.high'), value: lightingLow ? t('settings.low') : t('settings.high') },
+      { label: t('settings.language'), sub: s.language === 'auto' ? 'Auto' : langName, value: langName },
       {
-        label: 'Check for updates',
-        sub: updates.status === 'checking' ? 'Checking…' : `Current version ${APP_VERSION}`,
-        value: updates.available ? 'UPDATE' : '',
+        label: t('settings.updates'),
+        sub: updates.status === 'checking' ? t('settings.updates.checking') : t('settings.updates.current', { version: APP_VERSION }),
+        value: updates.available ? t('settings.updateWord') : '',
         valueOn: updates.available
       },
-      { label: 'Reset best record', sub: `${game.records.bestDay} days · ${game.records.bestFood} food`, value: '' },
-      { label: 'Back', sub: '', value: '' }
+      { label: t('settings.reset'), sub: t('settings.reset.sub', { days: days(game.records.bestDay), food: game.records.bestFood }), value: '' },
+      { label: t('common.back'), sub: '', value: '' }
     ];
-    const idx = this.menuBlock(ctx, items, { x: VIEW_W / 2 - 218, y: 104, w: 436, itemH: 42, gap: 5 });
+    const idx = this.menuBlock(ctx, items, { x: VIEW_W / 2 - 218, y: 100, w: 436, itemH: 42, gap: 5 });
     if (idx === 0) { game.toggleSound(); this.selection = 0; }
     else if (idx === 1) { game.toggleHaptics(); this.selection = 1; }
     else if (idx === 2) { game.cycleTouch(); this.selection = 2; }
     else if (idx === 3) { game.toggleLighting(); this.selection = 3; }
-    else if (idx === 4) {
+    else if (idx === 4) { game.cycleLanguage(); this.selection = 4; }
+    else if (idx === 5) {
       game.checkForUpdates(true);
-      this.selection = 4;
-    } else if (idx === 5) {
-      game.resetRecords();
-      this.showToast('Best record cleared');
       this.selection = 5;
-    } else if (idx === 6) game.back();
+    } else if (idx === 6) {
+      game.resetRecords();
+      this.showToast(t('settings.cleared'));
+      this.selection = 6;
+    } else if (idx === 7) game.back();
 
     this.drawToast(ctx);
   }
@@ -436,14 +480,11 @@ export class Screens {
     ctx.lineWidth = 1;
     ctx.stroke();
 
-    text(ctx, 'ABOUT', VIEW_W / 2, 96, { size: 22, weight: 800, align: 'center', color: '#fff2dc', letterSpacing: 3 });
+    const rtl = isRTL();
+    text(ctx, t('about.title'), VIEW_W / 2, 96, { size: 22, weight: 800, align: 'center', color: '#fff2dc', letterSpacing: 3 });
     text(ctx, 'Urban Stray · قط المدينة', VIEW_W / 2, 120, { size: 12, weight: 600, align: 'center', color: 'rgba(255, 200, 145, 0.8)' });
 
-    const para = [
-      'You are a small ginger stray in a city that never slows down.',
-      'The alleys are yours, but so is the traffic. Scavenge what you can,',
-      'sleep where it is warm, and keep moving before the dogs find you.'
-    ];
+    const para = [t('about.p1'), t('about.p2'), t('about.p3')];
     let y = 154;
     for (const line of para) {
       text(ctx, line, VIEW_W / 2, y, { size: 12.5, weight: 500, align: 'center', color: 'rgba(215, 228, 245, 0.9)' });
@@ -459,7 +500,7 @@ export class Screens {
     ctx.lineTo(VIEW_W - 198, 206);
     ctx.stroke();
 
-    text(ctx, 'OWNER & COPYRIGHT', mid, 224, {
+    text(ctx, t('about.owner'), mid, 224, {
       size: 9, weight: 800, align: 'center', color: 'rgba(255, 190, 110, 0.78)', letterSpacing: 1.8
     });
     text(ctx, OWNER_NAME, mid, 246, {
@@ -469,7 +510,7 @@ export class Screens {
       size: 12.5, weight: 700, align: 'center', color: 'rgba(255, 216, 176, 0.9)'
     });
     text(ctx, COPYRIGHT, mid, 282, {
-      size: 10.5, weight: 600, align: 'center', color: 'rgba(226, 236, 250, 0.85)'
+      size: 10.5, weight: 600, align: 'center', direction: 'ltr', color: 'rgba(226, 236, 250, 0.85)'
     });
     text(ctx, COPYRIGHT_AR, mid, 299, {
       size: 9.5, weight: 500, align: 'center', color: 'rgba(190, 205, 225, 0.7)'
@@ -481,22 +522,25 @@ export class Screens {
     ctx.stroke();
 
     const facts = [
-      ['Engine', 'Custom Canvas 2D engine (no game framework)'],
-      ['Art', '100% procedural vector art — no image assets'],
-      ['Audio', 'Synthesized with WebAudio at runtime']
+      [t('about.engine'), t('about.engine.sub')],
+      [t('about.art'), t('about.art.sub')],
+      [t('about.audio'), t('about.audio.sub')]
     ];
+    const factKeyX = rtl ? VIEW_W - 200 : 200;
+    const factValX = rtl ? VIEW_W - 300 : 300;
+    const factAlign = alignFor('left');
     let fy = 332;
     for (const [k, v] of facts) {
-      text(ctx, k.toUpperCase(), 200, fy, { size: 9, weight: 800, color: 'rgba(255, 190, 110, 0.65)', letterSpacing: 1.4 });
-      text(ctx, v, 300, fy, { size: 11.5, weight: 500, color: 'rgba(205, 220, 240, 0.9)' });
+      text(ctx, isRTL() ? k : k.toUpperCase(), factKeyX, fy, { size: 9, weight: 800, align: factAlign, color: 'rgba(255, 190, 110, 0.65)', letterSpacing: 1.4 });
+      text(ctx, v, factValX, fy, { size: 11.5, weight: 500, align: factAlign, color: 'rgba(205, 220, 240, 0.9)' });
       fy += 22;
     }
 
-    text(ctx, `Dedicated to every cat that ever owned a street. · ${GAME_TITLE} v${APP_VERSION}`, mid, 398, {
+    text(ctx, t('about.dedicated', { title: GAME_TITLE, version: APP_VERSION }), mid, 398, {
       size: 10.5, weight: 600, align: 'center', color: 'rgba(170, 190, 215, 0.65)'
     });
 
-    const idx = this.menuBlock(ctx, [{ label: 'Back' }], { x: VIEW_W / 2 - 90, y: 414, w: 180, itemH: 36 });
+    const idx = this.menuBlock(ctx, [{ label: t('common.back') }], { x: VIEW_W / 2 - 90, y: 414, w: 180, itemH: 36 });
     if (idx === 0) game.back();
     this.drawToast(ctx);
   }
@@ -515,24 +559,24 @@ export class Screens {
     ctx.lineWidth = 1.2;
     ctx.stroke();
 
-    text(ctx, 'PAUSED', VIEW_W / 2, 110, { size: 24, weight: 800, align: 'center', color: '#fff2dc', letterSpacing: 4 });
+    text(ctx, t('pause.title'), VIEW_W / 2, 110, { size: 24, weight: 800, align: 'center', color: '#fff2dc', letterSpacing: 4 });
 
     const s = game.survival;
-    text(ctx, `Day ${s.day} · ${formatTime(s.timeSurvived)} · ${Math.round(s.distance)} m`, VIEW_W / 2, 134, {
+    text(ctx, t('pause.stats', { day: s.day, time: formatTime(s.timeSurvived), distance: Math.round(s.distance) }), VIEW_W / 2, 134, {
       size: 11, weight: 600, align: 'center', color: 'rgba(180, 200, 225, 0.75)'
     });
 
     const items = [
-      { label: 'Resume', sub: '' },
-      { label: 'Restart Run', sub: 'Start a fresh night' },
-      { label: 'Main Menu', sub: '' }
+      { label: t('pause.resume'), sub: '' },
+      { label: t('pause.restart'), sub: t('pause.restart.sub') },
+      { label: t('pause.menu'), sub: '' }
     ];
     const idx = this.menuBlock(ctx, items, { x: VIEW_W / 2 - 130, y: 168, w: 260, itemH: 52, gap: 12 });
     if (idx === 0) game.resume();
     else if (idx === 1) game.startRun();
     else if (idx === 2) game.toMenu();
 
-    text(ctx, game.showTouch ? 'Tap PAW or press J to paw' : 'Press ESC to resume', VIEW_W / 2, VIEW_H - 106, {
+    text(ctx, game.showTouch ? t('pause.hintTouch') : t('pause.hintKey'), VIEW_W / 2, VIEW_H - 106, {
       size: 10, weight: 600, align: 'center', color: 'rgba(160, 185, 215, 0.55)'
     });
     this.drawToast(ctx);
@@ -553,8 +597,8 @@ export class Screens {
     ctx.lineWidth = 1.2;
     ctx.stroke();
 
-    text(ctx, 'THE CITY WINS', VIEW_W / 2, 92, { size: 20, weight: 800, align: 'center', color: '#ffd9d9', letterSpacing: 3 });
-    const lines = DEATH_LINES[sum.cause] || DEATH_LINES['the city'];
+    text(ctx, t('over.title'), VIEW_W / 2, 92, { size: 20, weight: 800, align: 'center', color: '#ffd9d9', letterSpacing: 3 });
+    const lines = t(DEATH_KEYS[sum.cause] || DEATH_KEYS['the city']);
     text(ctx, lines[0], VIEW_W / 2, 118, { size: 13, weight: 600, align: 'center', color: 'rgba(230, 235, 245, 0.9)' });
     text(ctx, lines[1], VIEW_W / 2, 136, { size: 10.5, weight: 500, align: 'center', color: 'rgba(175, 190, 212, 0.7)' });
 
@@ -567,30 +611,35 @@ export class Screens {
       ctx.strokeStyle = 'rgba(255, 200, 120, 0.7)';
       ctx.lineWidth = 1;
       ctx.stroke();
-      text(ctx, '★ NEW BEST RUN', 0, 3, { size: 10, weight: 800, align: 'center', color: '#ffd79a', letterSpacing: 1.5 });
+      text(ctx, t('over.newBest'), 0, 3, { size: 10, weight: 800, align: 'center', color: '#ffd79a', letterSpacing: 1.5 });
       ctx.restore();
     }
 
     // Stats grid.
     const stats = [
-      ['Days survived', String(sum.day)],
-      ['Food collected', String(sum.food)],
-      ['Distance', `${sum.distance} m`],
-      ['Time alive', sum.time]
+      [t('over.days'), String(sum.day)],
+      [t('over.food'), String(sum.food)],
+      [t('over.distance'), `${sum.distance} m`],
+      [t('over.time'), sum.time]
     ];
-    let y = 190;
+    const rtl = isRTL();
     const statsX = VIEW_W / 2 - 192;
+    const statsKeyX = rtl ? statsX + 368 : statsX + 16;
+    const statsValX = rtl ? statsX + 16 : statsX + 368;
+    const statsKeyAlign = alignFor('left');
+    const statsValAlign = alignFor('right');
+    let y = 190;
     for (const [k, v] of stats) {
       ctx.fillStyle = 'rgba(255, 255, 255, 0.04)';
       ctx.fillRect(statsX, y - 16, 384, 30);
-      text(ctx, k, statsX + 16, y + 4, { size: 11.5, weight: 600, color: 'rgba(180, 200, 225, 0.8)' });
-      text(ctx, v, statsX + 368, y + 4, { size: 14, weight: 800, align: 'right', color: '#fff4e6' });
+      text(ctx, k, statsKeyX, y + 4, { size: 11.5, weight: 600, align: statsKeyAlign, color: 'rgba(180, 200, 225, 0.8)' });
+      text(ctx, v, statsValX, y + 4, { size: 14, weight: 800, align: statsValAlign, color: '#fff4e6' });
       y += 34;
     }
 
     const items = [
-      { label: 'Try Again', sub: '' },
-      { label: 'Main Menu', sub: '' }
+      { label: t('over.tryAgain'), sub: '' },
+      { label: t('over.menu'), sub: '' }
     ];
     const idx = this.menuBlock(ctx, items, { x: VIEW_W / 2 - 150, y: y + 6, w: 300, itemH: 48, gap: 9 });
     if (idx === 0) game.startRun();

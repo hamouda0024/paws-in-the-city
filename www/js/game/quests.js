@@ -13,6 +13,7 @@
  */
 import { QUEST, VIEW_W, VIEW_H } from '../config.js';
 import { clamp } from '../core/rng.js';
+import { t } from '../core/i18n.js';
 
 const ROTATION = ['shelter', 'stealth', 'goldfish'];
 
@@ -79,7 +80,7 @@ export class Quests {
     const s = game.survival;
     s.hunger = clamp(s.hunger + QUEST.rewardHunger, 0, 100);
     s.heal(QUEST.rewardHeal);
-    game.hud.toast(`Quest complete · ${quest.label}`, 'good');
+    game.hud.toast(t('toast.questDone', { label: quest.label }), 'good');
     game.hud.floater(`+${QUEST.rewardHunger} hunger`, game.cat.centerX, game.cat.y - 20, 'good');
     game.audio.playMotif?.(1);
     game.particles.sparkle(game.cat.centerX, game.cat.y - 10, 14, '#ffe08a');
