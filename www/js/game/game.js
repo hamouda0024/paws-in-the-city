@@ -245,6 +245,13 @@ export class Game {
 
   updatePlaying(dt) {
     const { cat, world, survival, input } = this;
+
+    // On-screen pause pad (keyboard pause is handled in update()).
+    if (input.buttonPressed.has('pause')) {
+      this.pause();
+      return;
+    }
+
     this.meowCooldown = Math.max(0, this.meowCooldown - dt);
     this.eatingTimer = Math.max(0, this.eatingTimer - dt);
 

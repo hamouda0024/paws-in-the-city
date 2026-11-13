@@ -134,7 +134,7 @@ by impact, a spring-driven tail, ear flicks, slow blinks, idle sitting and purri
 | Sprint | `Shift` / `K` | chevron pad |
 | Jump (hold for height) | `Space` / `W` / `↑` | large arrow pad |
 | Rummage / sleep / meow | hold `E` / `F` / `J` | paw pad |
-| Pause | `Esc` / `P` | pause via the system UI |
+| Pause | `Esc` / `P` | ❚❚ button, top-right under the clock |
 
 Menus work with arrows + `Enter`, or by tapping. Settings (sound, haptics, touch controls) and
 the best-run record persist in `localStorage`.

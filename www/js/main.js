@@ -39,6 +39,27 @@ function toVirtual(clientX, clientY) {
 const input = new Input(canvas, toVirtual);
 const game = new Game({ canvas, ctx, input, audio, settings });
 
+/**
+ * Safe-area probe. Reading env(safe-area-inset-*) from CSS is the only way to
+ * get notches/rounded corners into canvas space; the values are converted to
+ * virtual units on every resize so the HUD can keep taps away from them.
+ */
+const safeProbe = document.createElement('div');
+safeProbe.setAttribute('aria-hidden', 'true');
+safeProbe.style.cssText = 'position:fixed;inset:0;visibility:hidden;pointer-events:none;' +
+  'padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);';
+document.body.appendChild(safeProbe);
+
+function readSafeInsets() {
+  const cs = window.getComputedStyle(safeProbe);
+  return {
+    top: parseFloat(cs.paddingTop) || 0,
+    right: parseFloat(cs.paddingRight) || 0,
+    bottom: parseFloat(cs.paddingBottom) || 0,
+    left: parseFloat(cs.paddingLeft) || 0
+  };
+}
+
 function resize() {
   const rect = canvas.getBoundingClientRect();
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -58,6 +79,17 @@ function resize() {
   view.cssW = cssW;
   view.cssH = cssH;
   view.dpr = dpr;
+
+  // Safe-area insets in virtual units, for HUD/button placement.
+  const insets = readSafeInsets();
+  const toVirtualUnits = (px) => Math.round((px / scale) * 10) / 10;
+  view.safe = {
+    top: toVirtualUnits(insets.top),
+    right: toVirtualUnits(insets.right),
+    bottom: toVirtualUnits(insets.bottom),
+    left: toVirtualUnits(insets.left)
+  };
+  game.safeInsets = view.safe;
 
   document.body.style.background = '#05080f';
 }

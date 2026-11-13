@@ -353,13 +353,15 @@ export class HUD {
    */
   buttons(game) {
     if (!game.showTouch) return [];
-    const pad = 16;
+    const safe = game.safeInsets || { top: 0, right: 0, bottom: 0, left: 0 };
+    const pad = 16 + safe.left;
+    const right = VIEW_W - 16 - safe.right;
     const size = 92;
     const gap = 12;
-    const bottom = VIEW_H - 14;
+    const bottom = VIEW_H - 14 - safe.bottom;
     const moveY = bottom - size;
     const jumpW = 132;
-    const jumpX = VIEW_W - pad - jumpW;
+    const jumpX = right - jumpW;
     const jumpY = bottom - jumpW;
     const sprintW = 96;
     const sprintH = 74;
@@ -367,8 +369,10 @@ export class HUD {
     const list = [
       { id: 'left', x: pad, y: moveY, w: size, h: size },
       { id: 'right', x: pad + size + gap, y: moveY, w: size, h: size },
-      { id: 'sprint', x: VIEW_W - pad - sprintW, y: jumpY - sprintH - 14, w: sprintW, h: sprintH },
-      { id: 'jump', x: jumpX, y: jumpY, w: jumpW, h: jumpW }
+      { id: 'sprint', x: right - sprintW, y: jumpY - sprintH - 14, w: sprintW, h: sprintH },
+      { id: 'jump', x: jumpX, y: jumpY, w: jumpW, h: jumpW },
+      // Always-available pause, tucked under the clock and clear of notches.
+      { id: 'pause', x: right - 46, y: 74 + safe.top, w: 46, h: 46 }
     ];
 
     const act = game.currentAction;
@@ -377,6 +381,26 @@ export class HUD {
       list.push({ id: 'interact', x: jumpX - iw - 18, y: bottom - iw, w: iw, h: iw });
     }
     return list;
+  }
+
+  /** Small semi-transparent pause affordance for touch play. */
+  drawPauseButton(ctx, game) {
+    const b = this.buttons(game).find((x) => x.id === 'pause');
+    if (!b) return;
+    const active = game.input.buttonHeld.get('pause');
+    ctx.save();
+    ctx.globalAlpha = active ? 0.95 : 0.55;
+    fillRound(ctx, b.x, b.y, b.w, b.h, 12, 'rgba(10, 16, 28, 0.72)');
+    roundRect(ctx, b.x, b.y, b.w, b.h, 12);
+    ctx.strokeStyle = 'rgba(170, 200, 240, 0.4)';
+    ctx.lineWidth = 1.4;
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(230, 242, 255, 0.92)';
+    const cx = b.x + b.w / 2;
+    const cy = b.y + b.h / 2;
+    ctx.fillRect(cx - 6, cy - 9, 4.5, 18);
+    ctx.fillRect(cx + 1.5, cy - 9, 4.5, 18);
+    ctx.restore();
   }
 
   drawTouch(ctx, game) {
@@ -476,6 +500,8 @@ export class HUD {
       c.closePath();
       c.fill();
     }, true);
+
+    this.drawPauseButton(ctx, game);
 
     // Context label under the paw so the action is never ambiguous.
     const act = game.currentAction;
