@@ -4,6 +4,7 @@
  */
 import { VIEW_W, VIEW_H, SETTINGS_KEY, setViewport } from './config.js';
 import { Input } from './core/input.js';
+import { readJSON, sanitizeSettings } from './core/storage.js';
 import { AudioEngine } from './core/audio.js';
 import { Game } from './game/game.js';
 import { setLang, lang, isRTL } from './core/i18n.js';
@@ -19,11 +20,7 @@ ctx.imageSmoothingEnabled = true;
 
 function loadSettings() {
   const defaults = { sound: true, haptics: true, touch: 'auto', lighting: 'high', language: 'auto' };
-  try {
-    const raw = localStorage.getItem(SETTINGS_KEY);
-    if (!raw) return defaults;
-    return { ...defaults, ...JSON.parse(raw) };
-  } catch { return defaults; }
+  return sanitizeSettings(readJSON(SETTINGS_KEY, null), defaults);
 }
 
 window.addEventListener('urbanstray:language', applyDocumentLanguage);

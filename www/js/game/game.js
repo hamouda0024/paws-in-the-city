@@ -9,6 +9,7 @@ import {
 import { UpdateChecker } from '../core/updates.js';
 import { clamp, damp, lerp, randRange } from '../core/rng.js';
 import { setLang, t } from '../core/i18n.js';
+import { readJSON, writeJSON, removeKey, sanitizeRecords } from '../core/storage.js';
 import { fillRound, roundRect, text } from '../core/draw.js';
 import { World } from './world.js';
 import { Cat } from './cat.js';
@@ -88,24 +89,21 @@ export class Game {
 
   loadRecords() {
     const fallback = { bestDay: 0, bestFood: 0, bestDistance: 0, runs: 0, goldFish: 0, doubleJump: false };
-    try {
-      const raw = localStorage.getItem(SAVE_KEY);
-      if (!raw) return fallback;
-      return { ...fallback, ...JSON.parse(raw) };
-    } catch { return fallback; }
+    return sanitizeRecords(readJSON(SAVE_KEY, null), fallback);
   }
 
   saveRecords() {
-    try { localStorage.setItem(SAVE_KEY, JSON.stringify(this.records)); } catch { /* private mode */ }
+    writeJSON(SAVE_KEY, this.records);
   }
 
   resetRecords() {
     this.records = { bestDay: 0, bestFood: 0, bestDistance: 0, runs: 0, goldFish: 0, doubleJump: false };
+    removeKey(SAVE_KEY);
     this.saveRecords();
   }
 
   saveSettings() {
-    try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(this.settings)); } catch { /* ignore */ }
+    writeJSON(SETTINGS_KEY, this.settings);
   }
 
   toggleSound() {
