@@ -26,6 +26,18 @@ android/keystore.properties
 android/*.keystore
 android/*.jks
 *.keystore
+*.jks
+*.p12
+*.pfx
+*.pem
+*.key
+*.asc
+
+# Local services / secrets
+**/google-services.json
+.env
+.env.*
+!.env.example
 
 # OS / editor noise
 .DS_Store
