@@ -12,7 +12,7 @@ const ctx = canvas.getContext('2d', { alpha: false, desynchronized: true });
 ctx.imageSmoothingEnabled = true;
 
 function loadSettings() {
-  const defaults = { sound: true, haptics: true, touch: 'auto' };
+  const defaults = { sound: true, haptics: true, touch: 'auto', lighting: 'high' };
   try {
     const raw = localStorage.getItem(SETTINGS_KEY);
     if (!raw) return defaults;

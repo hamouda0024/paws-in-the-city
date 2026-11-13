@@ -121,6 +121,13 @@ export class Game {
     this.screens.showToast(this.settings.haptics ? 'Haptics on' : 'Haptics off');
   }
 
+  /** Lighting quality: 'high' keeps every night pass, 'low' skips the heavy ones. */
+  toggleLighting() {
+    this.settings.lighting = this.settings.lighting === 'low' ? 'high' : 'low';
+    this.saveSettings();
+    this.hud.toast(this.settings.lighting === 'low' ? 'Lighting: Low (smoother)' : 'Lighting: High (full night glow)');
+  }
+
   cycleTouch() {
     const order = ['auto', 'on', 'off'];
     const i = order.indexOf(this.settings.touch);
@@ -252,6 +259,8 @@ export class Game {
       return;
     }
 
+    this.measureFrameBudget(dt);
+
     this.meowCooldown = Math.max(0, this.meowCooldown - dt);
     this.eatingTimer = Math.max(0, this.eatingTimer - dt);
 
@@ -338,6 +347,26 @@ export class Game {
           this.particles.splash(e.cx, this.world.ground.y, 5, 'rgba(180, 215, 245, 0.5)');
         }
       }
+    }
+  }
+
+  /**
+   * If the device cannot hold ~50 fps for five seconds straight, drop to the low
+   * lighting preset once per session and tell the player where to revert it.
+   */
+  measureFrameBudget(dt) {
+    if (this.settings.lighting === 'low' || this.lightingAutoDropped) {
+      this.slowSeconds = 0;
+      return;
+    }
+    if (dt > 0.02) this.slowSeconds = (this.slowSeconds || 0) + dt;
+    else this.slowSeconds = 0;
+
+    if (this.slowSeconds >= 5) {
+      this.settings.lighting = 'low';
+      this.lightingAutoDropped = true;
+      this.saveSettings();
+      this.hud.toast('Slow device — lighting set to Low. Change it in Settings', 'info');
     }
   }
 
@@ -673,7 +702,10 @@ export class Game {
     ctx.restore();
 
     background.drawWeather(ctx, { world, survival, camera: cam });
-    background.drawLighting(ctx, { world, survival, camera: cam, cat });
+    background.drawLighting(ctx, {
+      world, survival, camera: cam, cat,
+      low: this.settings.lighting === 'low'
+    });
   }
 
   drawCarWarning(ctx) {

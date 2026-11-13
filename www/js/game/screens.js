@@ -382,21 +382,23 @@ export class Screens {
     this.drawBackdrop(ctx, { dark: 0.75 });
 
     const panelX = VIEW_W / 2 - 250;
-    fillRound(ctx, panelX, 60, 500, VIEW_H - 130, 18, 'rgba(9, 14, 26, 0.92)');
-    roundRect(ctx, panelX, 60, 500, VIEW_H - 130, 18);
+    fillRound(ctx, panelX, 40, 500, VIEW_H - 76, 18, 'rgba(9, 14, 26, 0.92)');
+    roundRect(ctx, panelX, 40, 500, VIEW_H - 76, 18);
     ctx.strokeStyle = 'rgba(140, 175, 220, 0.22)';
     ctx.lineWidth = 1;
     ctx.stroke();
 
-    text(ctx, 'SETTINGS', VIEW_W / 2, 108, { size: 22, weight: 800, align: 'center', color: '#fff2dc', letterSpacing: 3 });
+    text(ctx, 'SETTINGS', VIEW_W / 2, 88, { size: 22, weight: 800, align: 'center', color: '#fff2dc', letterSpacing: 3 });
 
     const s = game.settings;
     const touchLabel = s.touch === 'auto' ? 'Auto' : s.touch === 'on' ? 'Always' : 'Off';
     const updates = game.updates;
+    const lightingLow = s.lighting === 'low';
     const items = [
       { label: 'Sound', sub: 'Ambience, meows and traffic', value: s.sound ? 'ON' : 'OFF', valueOn: s.sound },
       { label: 'Haptics', sub: 'Vibrate on impacts', value: s.haptics ? 'ON' : 'OFF', valueOn: s.haptics },
       { label: 'Touch controls', sub: 'On-screen pads', value: touchLabel, valueOn: s.touch !== 'off' },
+      { label: 'Lighting', sub: lightingLow ? 'Low — no night glow passes' : 'High — full night lighting', value: lightingLow ? 'LOW' : 'HIGH' },
       {
         label: 'Check for updates',
         sub: updates.status === 'checking' ? 'Checking…' : `Current version ${APP_VERSION}`,
@@ -406,18 +408,19 @@ export class Screens {
       { label: 'Reset best record', sub: `${game.records.bestDay} days · ${game.records.bestFood} food`, value: '' },
       { label: 'Back', sub: '', value: '' }
     ];
-    const idx = this.menuBlock(ctx, items, { x: VIEW_W / 2 - 218, y: 142, w: 436, itemH: 46, gap: 8 });
+    const idx = this.menuBlock(ctx, items, { x: VIEW_W / 2 - 218, y: 104, w: 436, itemH: 42, gap: 5 });
     if (idx === 0) { game.toggleSound(); this.selection = 0; }
     else if (idx === 1) { game.toggleHaptics(); this.selection = 1; }
     else if (idx === 2) { game.cycleTouch(); this.selection = 2; }
-    else if (idx === 3) {
+    else if (idx === 3) { game.toggleLighting(); this.selection = 3; }
+    else if (idx === 4) {
       game.checkForUpdates(true);
-      this.selection = 3;
-    } else if (idx === 4) {
+      this.selection = 4;
+    } else if (idx === 5) {
       game.resetRecords();
       this.showToast('Best record cleared');
-      this.selection = 4;
-    } else if (idx === 5) game.back();
+      this.selection = 5;
+    } else if (idx === 6) game.back();
 
     this.drawToast(ctx);
   }

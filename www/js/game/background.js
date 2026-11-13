@@ -745,9 +745,26 @@ export class Background {
     }
   }
 
-  /** Night grading + light pools + vignette. */
-  drawLighting(ctx, { world, survival, camera, cat }) {
+  /**
+   * Night grading + light pools + vignette.
+   *
+   * `low` keeps the mood but drops the expensive passes (per-lamp additive glow,
+   * the cat's light pool and gradient grading) for low-end devices. The result is
+   * a flat tint plus a cached vignette, which is a fraction of the fill cost.
+   */
+  drawLighting(ctx, { world, survival, camera, cat, low = false }) {
     const dark = survival.darkness;
+
+    if (low) {
+      if (dark > 0.01) {
+        ctx.fillStyle = `rgba(6, 10, 22, ${(0.46 * dark).toFixed(3)})`;
+        ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+      }
+      ctx.fillStyle = this.vignette(ctx, dark);
+      ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+      return;
+    }
+
     if (dark > 0.01) {
       ctx.save();
       ctx.globalCompositeOperation = 'multiply';
@@ -792,13 +809,31 @@ export class Background {
       ctx.restore();
     }
 
-    // Vignette.
+    // Vignette (cached per view size).
     ctx.save();
-    const vg = ctx.createRadialGradient(VIEW_W / 2, VIEW_H / 2, VIEW_H * 0.35, VIEW_W / 2, VIEW_H / 2, VIEW_W * 0.78);
-    vg.addColorStop(0, 'rgba(0,0,0,0)');
-    vg.addColorStop(1, `rgba(0,0,0,${0.34 + dark * 0.16})`);
-    ctx.fillStyle = vg;
+    ctx.fillStyle = this.vignette(ctx, dark);
     ctx.fillRect(0, 0, VIEW_W, VIEW_H);
     ctx.restore();
+  }
+
+  /**
+   * Radial darkening, cached per view size and (coarsely) per night strength.
+   * Creating two gradients every frame was a measurable cost on weak GPUs.
+   */
+  vignette(ctx, dark) {
+    const strength = Math.round(clamp(dark, 0, 1) * 20) / 20;
+    const key = `${VIEW_W}x${VIEW_H}x${strength}`;
+    if (!this._vignettes) this._vignettes = new Map();
+    const cached = this._vignettes.get(key);
+    if (cached) return cached;
+
+    const vg = ctx.createRadialGradient(VIEW_W / 2, VIEW_H / 2, VIEW_H * 0.35, VIEW_W / 2, VIEW_H / 2, VIEW_W * 0.78);
+    vg.addColorStop(0, 'rgba(0,0,0,0)');
+    vg.addColorStop(1, `rgba(0,0,0,${(0.34 + strength * 0.16).toFixed(3)})`);
+
+    // Bound the cache; older keys are simply rebuilt on demand.
+    if (this._vignettes.size > 48) this._vignettes.clear();
+    this._vignettes.set(key, vg);
+    return vg;
   }
 }

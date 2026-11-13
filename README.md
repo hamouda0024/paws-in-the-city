@@ -136,7 +136,7 @@ by impact, a spring-driven tail, ear flicks, slow blinks, idle sitting and purri
 | Rummage / sleep / meow | hold `E` / `F` / `J` | paw pad |
 | Pause | `Esc` / `P` | ❚❚ button, top-right under the clock |
 
-Menus work with arrows + `Enter`, or by tapping. Settings (sound, haptics, touch controls) and
+Menus work with arrows + `Enter`, or by tapping. Settings (sound, haptics, touch controls, lighting quality) and
 the best-run record persist in `localStorage`.
 
 ---
@@ -180,7 +180,7 @@ www/
       world.js          chunk streaming, terrain/rooftops, weather, traffic
       cat.js            player physics, procedural animation, vector drawing
       entities.js       cars, dogs, humans, mice, food, sleep spots
-      background.js     sky palettes, parallax skyline, facades, street, lighting
+      background.js     sky palettes, parallax skyline, facades, street, lighting (high/low)
       hud.js            bars, clock, prompts, toasts, touch pads
       screens.js        title / how-to / settings / about / pause / game over
       particles.js      pooled effects (dust, splash, crumbs, Zzz, hearts)
@@ -301,7 +301,11 @@ button opens the system browser through `@capacitor/browser`.
 ## Known limitations
 
 - Built on Chromium/WebView rendering, not a native renderer; the night lighting pass is the
-  most expensive part on very old low-end devices.
+  main per-frame cost, so **Settings → Lighting → Low** skips the lamp glow, cat light pool and
+  gradient grading (a flat tint plus a cached vignette instead). The game also drops to Low by
+  itself — once per session — when frames stay above ~20 ms for five seconds straight, and says
+  so on screen. The choice is saved; raise it again in Settings any time.
+  That pass used to be the most expensive part on very old low-end devices.
 - Endless procedural difficulty ramp — no authored levels or cloud saves.
 - Audio requires one tap to unlock, per WebView autoplay rules.
 - Verified in Chromium (same engine as Android WebView) and via APK metadata/signature checks;
